@@ -1,0 +1,228 @@
+#!/usr/bin/env python
+"""Preprocess toyzero dataset"""
+# pylint: disable=missing-function-docstring
+
+import argparse
+import logging
+import multiprocessing
+import os
+
+from collections import namedtuple
+
+import tqdm
+import numpy as np
+import pandas as pd
+
+from toytools.collect import (
+    collect_toyzero_images, filter_parsed_images, parse_images, load_image
+)
+from toytools.transform import (
+    get_background_value_fast, is_image_empty, try_find_region_with_signal
+)
+from toytools.datasets.presimple_toyzero import COLUMNS
+
+Config = namedtuple(
+    'Config',
+    [
+        'path',
+        'label',
+        'apas',
+        'planes',
+        'min_signal',
+        'n_crops',
+        'crop_retries',
+        'crop_shape',
+    ]
+)
+
+class CroppingWorker:
+    # pylint: disable=missing-class-docstring
+
+    def __init__(self, config):
+        self._path         = config.path
+        self._min_signal   = config.min_signal
+        self._n_crops      = config.n_crops
+        self._crop_shape   = config.crop_shape
+        self._crop_retries = config.crop_retries
+
+    def __call__(self, index_and_parsed_image):
+        """Return a list of preprocessed regions of a parsed image"""
+        index, parsed_image = index_and_parsed_image
+
+        image     = load_image(self._path, False, parsed_image[0])
+        bkg_value = get_background_value_fast(image)
+
+        if is_image_empty(image, bkg_value, self._min_signal):
+            logging.warning(
+                "Empty image: %s. Background: %d.", parsed_image[-1], bkg_value
+            )
+            return []
+
+        if self._crop_shape is None:
+            crop_region = (0, 0, image.shape[0], image.shape[1])
+            return [ (*parsed_image, *crop_region, bkg_value) ]
+
+        result = []
+        prg    = np.random.default_rng(index)
+
+        for _ in range(self._n_crops):
+            cropped_image, crop_region = try_find_region_with_signal(
+                image, prg, bkg_value, self._min_signal,
+                self._crop_shape, self._crop_retries
+            )
+
+            if not is_image_empty(cropped_image, bkg_value, self._min_signal):
+                result.append((*parsed_image, *crop_region, bkg_value))
+
+        return result
+
+def parse_cmdargs():
+    parser = argparse.ArgumentParser("Precompute cropped regions")
+
+    parser.add_argument(
+        'path',
+        help    = 'Directory where toyzero dataset is located',
+        metavar = 'PATH',
+        type    = str,
+    )
+
+    parser.add_argument(
+        'label',
+        help    = 'Label of the precomputed croppings (used as a file name).',
+        metavar = 'LABEL',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--apa',
+        default = None,
+        dest    = 'apas',
+        help    = 'APAs to select',
+        type    = int,
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '--plane',
+        default = None,
+        dest    = 'planes',
+        help    = 'Wire Planes to select',
+        choices = [ 'U', 'V', 'W', ],
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '-n',
+        default = 10,
+        dest    = 'n_crops',
+        help    = 'Number of cropped regions to extract from each image',
+        type    = int,
+    )
+
+    parser.add_argument(
+        '--min-signal',
+        default = 10,
+        dest    = 'min_signal',
+        help    = 'Minimum number of signal pixels to consider image nonempty',
+        type    = int,
+    )
+
+    parser.add_argument(
+        '-r', '--retries',
+        default = 100,
+        dest    = 'crop_retries',
+        help    = 'Number of attempts to extract a single cropped region',
+        type    = int,
+    )
+
+    parser.add_argument(
+        '-s', '--shape',
+        default = None,
+        dest    = 'crop_shape',
+        help    = "Shape of the crop 'WIDTHxHEIGHT'",
+        type    = lambda s : tuple(int(x) for x in s.split('x'))
+    )
+
+    return parser.parse_args()
+
+def create_config_from_cmdargs(cmdargs):
+
+    def optional_map(fn, x):
+        if x is None:
+            return None
+
+        return fn(x)
+
+    return Config(
+        path         = cmdargs.path,
+        label        = cmdargs.label,
+        apas         = optional_map(set, cmdargs.apas),
+        planes       = optional_map(set, cmdargs.planes),
+        min_signal   = cmdargs.min_signal,
+        n_crops      = cmdargs.n_crops,
+        crop_retries = cmdargs.crop_retries,
+        crop_shape   = cmdargs.crop_shape
+    )
+
+def construct_dataset(parsed_images, config):
+    result = []
+
+    progbar = tqdm.tqdm(
+        desc  = 'Cropping Images',
+        total = len(parsed_images),
+        dynamic_ncols = True
+    )
+
+    worker = CroppingWorker(config)
+
+    with multiprocessing.Pool() as pool:
+        for samples in pool.imap_unordered(worker, enumerate(parsed_images)):
+            result += samples
+            progbar.update()
+
+    progbar.close()
+
+    return sorted(result)
+
+def get_save_name(config):
+    fname = config.label
+
+    if config.apas is not None:
+        fname += '-' + str(config.apas)
+
+    if config.planes is not None:
+        fname += '-' + str(config.planes)
+
+    if config.crop_shape is not None:
+        fname += '-%dx%d' % config.crop_shape
+
+    return fname + '.csv'
+
+def save_dataset(dataset, config):
+    fname = get_save_name(config)
+
+    df = pd.DataFrame(dataset, columns = COLUMNS)
+    df.to_csv(os.path.join(config.path, fname), index_label = 'index')
+
+def main():
+    cmdargs = parse_cmdargs()
+    config  = create_config_from_cmdargs(cmdargs)
+
+    print("Collecting Images...")
+    images = collect_toyzero_images(config.path)
+    parsed_images = parse_images(images)
+
+    print("Filtering Images...")
+    parsed_images = filter_parsed_images(
+        parsed_images, config.apas, config.planes
+    )
+
+    print("Cropping Images...")
+    dataset = construct_dataset(parsed_images, config)
+
+    print("Saving Result...")
+    save_dataset(dataset, config)
+
+if __name__ == '__main__':
+    main()
+
