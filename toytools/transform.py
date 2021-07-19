@@ -10,7 +10,7 @@ def get_background_value(image):
     return values[idx_max]
 
 def get_background_value_fast(image, chunk_size = 128):
-    """Return fast but possible incorrect inferred background value of image"""
+    """Return fast but possibly incorrect inferred background value of image"""
     return get_background_value(image[:chunk_size, :chunk_size])
 
 def sample_image_region(
