@@ -30,7 +30,7 @@ class SimpleToyzeroDataset(GenericDataset):
         `is_train` flag controls overall behavior of the
         `SimpleToyzeroDataset`. If `is_train` is True, then the cropped regions
         of toyzero images are selected at random. Otherwise, the cropped
-        regions are selected in a repdorucible manner using `seed` parameter.
+        regions are selected in a reproducible manner using `seed` parameter.
         This flag also controls which part of the entire toyzero dataset this
         object will focus on.
         Default: False
