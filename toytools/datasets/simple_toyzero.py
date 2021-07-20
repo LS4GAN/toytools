@@ -112,11 +112,11 @@ class SimpleToyzeroDataset(GenericDataset):
     def __len__(self):
         return self._len
 
-    def _get_rand_cropped_area(self, image_fake, image_real, bkg_value):
+    def _get_rand_cropped_area(self, image_fake, image_real, prg, bkg_value):
         """Randomly crop images."""
         cropped_fake_image, crop_region = try_find_region_with_signal(
-            image_fake, self._prg, bkg_value, MIN_PIXEL_DIFF,
-            self._crop_shape, CROP_RETRIES
+            image_fake, prg, bkg_value, MIN_PIXEL_DIFF, self._crop_shape,
+            CROP_RETRIES
         )
 
         return (cropped_fake_image, crop_image(image_real, crop_region))
@@ -124,10 +124,10 @@ class SimpleToyzeroDataset(GenericDataset):
     def __getitem__(self, index):
 
         if self._is_train:
-            self._prg    = np.random.default_rng()
-            sample_index = self._prg.choice(self._indices, size = 1)[0]
+            prg          = np.random.default_rng()
+            sample_index = prg.choice(self._indices, size = 1)[0]
         else:
-            self._prg    = np.random.default_rng(index)
+            prg          = np.random.default_rng(index)
             sample_index = self._indices[index % len(self._indices)]
 
         image_name = self._images[sample_index]
@@ -137,7 +137,7 @@ class SimpleToyzeroDataset(GenericDataset):
 
         if self._crop_shape is not None:
             (image_fake, image_real) = self._get_rand_cropped_area(
-                image_fake, image_real, bkg_value
+                image_fake, image_real, prg, bkg_value
             )
 
         images = [ (x - bkg_value) for x in (image_fake, image_real) ]
