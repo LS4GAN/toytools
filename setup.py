@@ -14,7 +14,7 @@ setuptools.setup(
     packages         = setuptools.find_packages(
         include = [ 'toytools', 'toytools.*' ]
     ),
-    scripts          = [ 'scripts/preprocess', ],
+    scripts          = [ 'scripts/preprocess', 'scripts/view_dataset', ],
     install_requires = [ 'numpy', 'pandas', 'matplotlib' ],
 )
 

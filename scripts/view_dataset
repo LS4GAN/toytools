@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+"""Make plots of toyzero dataset images"""
+# pylint: disable=missing-function-docstring
+
+import argparse
+import json
+import tqdm
+
+import matplotlib.pyplot as plt
+
+from toytools.datasets import get_toyzero_dataset
+from toytools.plot     import (
+    save_figure, default_image_plot, get_common_images_range
+)
+
+def parse_cmdargs():
+    parser = argparse.ArgumentParser("View toyzero dataset")
+
+    parser.add_argument(
+        'path',
+        help    = 'Directory where toyzero dataset is located',
+        metavar = 'PATH',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--dataset',
+        choices = [ 'toyzero-simple', 'toyzero-presimple' ],
+        default = 'simple',
+        dest    = 'dataset',
+        help    = 'Type of the toyzero Dataset to use.',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--data_args',
+        default = {},
+        dest    = 'data_args',
+        help    = (
+            "JSON dict of data_args parameters. "
+            "Example: '{ \"seed\": 1, \"val_size\": 0.4  }'"
+        ),
+        type    = json.loads,
+    )
+
+    parser.add_argument(
+        '-i',
+        default = None,
+        dest    = 'index',
+        help    = 'Index of the sample to plot',
+        type    = int,
+    )
+
+    parser.add_argument(
+        '--plotdir',
+        default = None,
+        dest    = 'plotdir',
+        help    = (
+            'Directory where to save plots. If not specified then this '
+            'script will be run in the interactive mode.'
+        ),
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--ext',
+        default = 'png',
+        dest    = 'ext',
+        help    = 'Plot extensions',
+        type    = str,
+        nargs   = '+',
+    )
+
+    return parser.parse_args()
+
+def plot_image_pair(img_fake, img_real, vertical = False):
+
+    subplots_kwargs = {
+        'sharex' : True, 'sharey' : True, 'constrained_layout' : True,
+    }
+
+    if vertical:
+        f, axs = plt.subplots(2, 1, **subplots_kwargs)
+    else:
+        f, axs = plt.subplots(1, 2, **subplots_kwargs)
+
+    color_range = get_common_images_range((img_fake, img_real))
+
+    aximg_fake = default_image_plot(axs[0], img_fake, *color_range)
+    _          = default_image_plot(axs[1], img_real, *color_range)
+
+    axs[0].set_title('Fake')
+    axs[1].set_title('Real')
+
+    if vertical:
+        f.colorbar(aximg_fake, ax = axs, location = 'right')
+    else:
+        f.colorbar(aximg_fake, ax = axs, location = 'bottom')
+
+    return f, axs
+
+def plot_single_sample(dataset, index, plotdir, ext):
+    img_fake, img_real = dataset[index]
+    vertical = (img_fake.shape[1] > img_fake.shape[0])
+
+    f, _ax = plot_image_pair(img_fake, img_real, vertical)
+    f.suptitle("Index: %d" % index)
+
+    if plotdir is None:
+        plt.show()
+    else:
+        save_figure(f, '%s/sample_%04d' % (plotdir, index), ext)
+
+    plt.close(f)
+
+def main():
+    cmdargs = parse_cmdargs()
+    dataset = get_toyzero_dataset(
+        cmdargs.dataset, cmdargs.path, **cmdargs.data_args
+    )
+
+    if cmdargs.index is None:
+        progbar = tqdm.tqdm(
+            desc = 'Plotting', total = len(dataset), dynamic_ncols = True
+        )
+
+        for index in range(len(dataset)):
+            plot_single_sample(dataset, index, cmdargs.plotdir, cmdargs.ext)
+            progbar.update()
+
+        progbar.close()
+
+    else:
+        plot_single_sample(
+            dataset, cmdargs.index, cmdargs.plotdir, cmdargs.ext
+        )
+
+if __name__ == '__main__':
+    main()
+
