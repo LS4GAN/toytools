@@ -1,0 +1,11 @@
+[MESSAGES CONTROL]
+
+disable=
+    bad-continuation,
+    bad-whitespace,
+    invalid-name,
+    no-else-return,
+    superfluous-parens,
+    too-few-public-methods,
+    trailing-newlines,
+
