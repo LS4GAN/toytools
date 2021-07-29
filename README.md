@@ -102,3 +102,40 @@ be either viewed in an interactive mode (default), or saved to files in a batch
 mode (when the ```--plotdir``` argument is specified).
 
 
+# Usage Examples
+
+## Generate Image Crops
+
+To generate image crops of shape 512x512 for the U plane you can use the
+following command
+```
+python scripts/preprocess --plane U -n 4 --min-signal 500 -s 512x512 \
+   /path/to/data LABEL
+```
+
+Here, `-n 4` controls the number of crops to extract from a single image.
+The parameter `--min-signal 500` indicates the threshold value of the nonzero
+pixels to keep cropped image. If number of nonzero pixels after cropping
+is less than 500, then the cropped image will be discarded the the cropping
+process retried. `/path/to/data` is the directory where your `toyzero` dataset
+is located. Finally, `LABEL` is a label that will be given to the cropping
+dataset (this label will be embedded into generated dataset name).
+
+After the preprocess script finished its run it will create a file
+`LABEL-U-512x512.csv` that contains a list of cropped regions.
+
+## Viewing Image Crops
+
+The generated image crops can be viewed with the help of the `view_dataset`
+script:
+```
+python scripts/view_dataset --dataset toyzero-presimple \
+    --data_args '{ "fname": "LABEL-U-512x512.csv" }' -i :100 \
+    /path/to/data --plotdir /path/to/plot_dir
+```
+
+This script will load the toyzero image crops from the file
+`LABEL-U-512x512.csv`, plot 100 cropped samples (`-i :100`), and save the
+plots under `/path/to/plot_dir`.
+
+
