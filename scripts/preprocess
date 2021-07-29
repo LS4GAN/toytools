@@ -54,7 +54,7 @@ class CroppingWorker:
 
         if is_image_empty(image, bkg_value, self._min_signal):
             logging.warning(
-                "Empty image: %s. Background: %d.", parsed_image[-1], bkg_value
+                "Empty image: %s. Background: %d.", parsed_image[0], bkg_value
             )
             return []
 
