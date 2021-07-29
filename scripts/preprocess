@@ -188,10 +188,10 @@ def get_save_name(config):
     fname = config.label
 
     if config.apas is not None:
-        fname += '-' + str(config.apas)
+        fname += '-' + ''.join(str(x) for x in config.apas)
 
     if config.planes is not None:
-        fname += '-' + str(config.planes)
+        fname += '-' + ''.join(str(x) for x in config.planes)
 
     if config.crop_shape is not None:
         fname += '-%dx%d' % config.crop_shape
