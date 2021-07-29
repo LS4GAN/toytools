@@ -2,7 +2,7 @@
 import numpy as np
 
 from toytools.collect   import (
-    collect_toyzero_images, filter_images, load_image
+    collect_toyzero_images, filter_images, load_image, train_test_split
 )
 from toytools.transform import (
     get_background_value_fast, crop_image, try_find_region_with_signal
@@ -90,22 +90,20 @@ class SimpleToyzeroDataset(GenericDataset):
 
     def _split_dataset(self):
         """Split images into training/validation samples."""
-        indices = np.arange(len(self._images))
-        self._prg.shuffle(indices)
-
         val_size = self._val_size
 
-        if val_size <= 1:
-            val_size = int(len(indices) * val_size)
-        else:
-            val_size = val_size // self._efactor
+        if val_size > 1:
+            # Temporary reduce size
+            val_size = max(1, val_size // self._efactor)
 
-        train_size = len(indices) - val_size
+        train_indices, val_indices = train_test_split(
+            len(self._images), val_size, shuffle = True, prg = self._prg
+        )
 
         if self._is_train:
-            self._indices = indices[:train_size]
+            self._indices = train_indices
         else:
-            self._indices = indices[train_size:]
+            self._indices = val_indices
 
         self._len = len(self._indices) * self._efactor
 

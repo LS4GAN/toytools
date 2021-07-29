@@ -3,7 +3,7 @@
 import os
 import re
 
-from typing import List, Tuple, Optional, Set
+from typing import List, Tuple, Optional, Set, Union
 import numpy as np
 
 DIR_FAKE = 'fake'
@@ -119,4 +119,48 @@ def load_image(root : str, is_fake : bool, name : str) -> np.ndarray:
 
     with np.load(path) as f:
         return f[f.files[0]]
+
+def train_test_split(
+    n         : int,
+    test_size : Union[int, float],
+    shuffle   : bool,
+    prg       : np.random.Generator,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Split dataset of size `n` into training/test parts.
+
+    Parameters
+    ----------
+    n : int
+        Size of the dataset to split.
+    test_size : int or float
+        Fraction of the dataset that will be used as a test sample.
+        If `test_size` <= 1, then it is treated as a fraction, i.e.
+        (size of test sample) = `test_size` * (size of toyzero dataset)
+        Otherwise, (size of val sample) = `test_size`.
+    shuffle : bool
+        Whether to shuffle dataset
+    prg : np.random.Generator
+        RNG that will be used for shuffling the dataset.
+        This parameter has no effect if `shuffle` is False.
+
+    Returns
+    -------
+    (train_indices, test_indices) : (np.ndarray, np.ndarray)
+        Indices of training and validation samples.
+
+    """
+    indices = np.arange(n)
+
+    if shuffle:
+        prg.shuffle(indices)
+
+    if test_size <= 1:
+        test_size = int(len(indices) * test_size)
+
+    train_size = max(0, int(len(indices) - test_size))
+
+    train_indices = indices[:train_size]
+    test_indices  = indices[train_size:]
+
+    return (train_indices, test_indices)
 
