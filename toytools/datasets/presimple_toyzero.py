@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from toytools.collect   import load_image
+from toytools.collect   import load_image, train_test_split
 from toytools.transform import crop_image
 from .generic_dataset   import GenericDataset
 
@@ -72,22 +72,14 @@ class PreSimpleToyzeroDataset(GenericDataset):
 
     def _split_dataset(self):
         """Split dataset into training/validation parts."""
-        indices = np.arange(len(self._df))
-
-        if self._shuffle:
-            self._prg.shuffle(indices)
-
-        val_size = self._val_size
-
-        if val_size <= 1:
-            val_size = int(len(indices) * val_size)
-
-        train_size = len(indices) - val_size
+        train_indices, val_indices = train_test_split(
+            len(self._df), self._val_size, self._shuffle, self._prg
+        )
 
         if self._is_train:
-            indices = indices[:train_size]
+            indices = train_indices
         else:
-            indices = indices[train_size:]
+            indices = val_indices
 
         self._df = self._df.iloc[indices]
 
