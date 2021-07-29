@@ -4,6 +4,7 @@
 
 import argparse
 import json
+import re
 import tqdm
 
 import matplotlib.pyplot as plt
@@ -47,8 +48,9 @@ def parse_cmdargs():
         '-i',
         default = None,
         dest    = 'index',
-        help    = 'Index of the sample to plot',
-        type    = int,
+        help    = \
+            'Index or range of indices [first:last) of the samples to plot',
+        type    = str,
     )
 
     parser.add_argument(
@@ -113,27 +115,42 @@ def plot_single_sample(dataset, index, plotdir, ext):
 
     plt.close(f)
 
+def parse_index_range(dataset, index):
+    if index is None:
+        return range(len(dataset))
+
+    if index.isnumeric():
+        index = int(index)
+        return range(index, index + 1)
+
+    range_re = re.compile(r'(\d*):(\d*)')
+    match    = range_re.match(index)
+
+    if not match:
+        raise ValueError("Failed to parse index range: '%s'" % index)
+
+    first, last = [ (int(x) if x != '' else None) for x in match.groups() ]
+    index_slice = slice(first, last)
+
+    return range(*index_slice.indices(len(dataset)))
+
 def main():
     cmdargs = parse_cmdargs()
     dataset = get_toyzero_dataset(
         cmdargs.dataset, cmdargs.path, **cmdargs.data_args
     )
 
-    if cmdargs.index is None:
-        progbar = tqdm.tqdm(
-            desc = 'Plotting', total = len(dataset), dynamic_ncols = True
-        )
+    index_range = parse_index_range(dataset, cmdargs.index)
 
-        for index in range(len(dataset)):
-            plot_single_sample(dataset, index, cmdargs.plotdir, cmdargs.ext)
-            progbar.update()
+    progbar = tqdm.tqdm(
+        desc = 'Plotting', total = len(index_range), dynamic_ncols = True
+    )
 
-        progbar.close()
+    for index in index_range:
+        plot_single_sample(dataset, index, cmdargs.plotdir, cmdargs.ext)
+        progbar.update()
 
-    else:
-        plot_single_sample(
-            dataset, cmdargs.index, cmdargs.plotdir, cmdargs.ext
-        )
+    progbar.close()
 
 if __name__ == '__main__':
     main()
