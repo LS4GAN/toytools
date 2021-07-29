@@ -49,7 +49,7 @@ class CroppingWorker:
         """Return a list of preprocessed regions of a parsed image"""
         index, parsed_image = index_and_parsed_image
 
-        image     = load_image(self._path, False, parsed_image[0])
+        image     = load_image(self._path, True, parsed_image[0])
         bkg_value = get_background_value_fast(image)
 
         if is_image_empty(image, bkg_value, self._min_signal):
