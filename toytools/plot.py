@@ -28,7 +28,7 @@ def get_common_images_range(images, margin = 0.3):
 
     return (vmin, vmax)
 
-def default_image_plot(ax, image, vmin = None, vmax = None):
+def default_image_plot(ax, image, vmin = None, vmax = None, symlog = False):
     """Plot toyzero `image` with default style."""
 
     drop_ticks(ax)
@@ -41,7 +41,11 @@ def default_image_plot(ax, image, vmin = None, vmax = None):
 
     # pylint: disable=no-member
     cmap = mpl.cm.seismic
-    norm = mpl.colors.TwoSlopeNorm(0, vmin, vmax)
+
+    if symlog:
+        norm = mpl.colors.SymLogNorm(linthresh = 1.0, vmin = vmin, vmax = vmax)
+    else:
+        norm = mpl.colors.TwoSlopeNorm(0, vmin, vmax)
 
     return ax.imshow(image, cmap = cmap, norm = norm)
 
