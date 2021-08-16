@@ -22,7 +22,7 @@ def get_common_images_range(images, margin = 0.3):
     vmax = max(vmax, 1)
     vmax = (1 + margin) * vmax
 
-    vmin = max([ np.min(image) for image in images ])
+    vmin = min([ np.min(image) for image in images ])
     vmin = min(vmin, -1)
     vmin = (1 + margin) * vmin
 
