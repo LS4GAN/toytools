@@ -7,10 +7,6 @@ from toytools.collect   import load_image, train_test_split
 from toytools.transform import crop_image
 from .generic_dataset   import GenericDataset
 
-COLUMNS = [
-    'image', 'event', 'apa', 'plane', 'x', 'y', 'width', 'height', 'bkg'
-]
-
 class PreUnalignedToyzeroDataset(GenericDataset):
     """Toyzero Dataset that loads images according to preprocessed list.
 

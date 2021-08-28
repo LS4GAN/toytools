@@ -19,7 +19,10 @@ from toytools.collect import (
 from toytools.transform import (
     get_background_value_fast, is_image_empty, try_find_region_with_signal
 )
-from toytools.datasets.presimple_toyzero import COLUMNS
+
+COLUMNS = [
+    'image', 'event', 'apa', 'plane', 'x', 'y', 'width', 'height', 'bkg'
+]
 
 Config = namedtuple(
     'Config',
