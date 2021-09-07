@@ -8,4 +8,5 @@ disable=
     superfluous-parens,
     too-few-public-methods,
     trailing-newlines,
+    duplicate-code,
 
