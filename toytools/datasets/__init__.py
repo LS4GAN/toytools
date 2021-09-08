@@ -3,12 +3,14 @@
 import importlib
 import importlib.util
 
-from .funcs             import get_toyzero_dataset
-from .simple_toyzero    import SimpleToyzeroDataset
-from .presimple_toyzero import PreSimpleToyzeroDataset
+from .funcs                import get_toyzero_dataset
+from .simple_toyzero       import SimpleToyzeroDataset
+from .presimple_toyzero    import PreSimpleToyzeroDataset
+from .preunaligned_toyzero import PreUnalignedToyzeroDataset
 
 __all__ = [
-    'SimpleToyzeroDataset', 'PreSimpleToyzeroDataset', 'get_toyzero_dataset',
+    'SimpleToyzeroDataset', 'PreSimpleToyzeroDataset',
+    'PreUnalignedToyzeroDataset', 'get_toyzero_dataset',
 ]
 
 # NOTE: it imports torch-dependent functions conditionally on pytorch presence
