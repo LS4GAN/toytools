@@ -52,6 +52,19 @@ Similar to `SimpleToyzeroDataset`, `PreSimpleToyzeroDataset` automatically
 separates the preprocessed dataset into training and validation parts.
 
 
+### PreUnalignedToyzeroDataset
+This dataset behavior is similar to the `PreSimpleToyzeroDataset`, except that
+it returns unpaired images during the training phase. During the testing and
+validation phases, the returned images are paired as in
+`PreSimpleToyzeroDataset`.
+
+
+### PreCroppedToyzeroDataset
+This dataset loads cropped images created by the `precrop` script. It supports
+returning either paired or unpaired images depending on the constructor
+arguments.
+
+
 ### NOTE
 All datasets described in this section are implemented in a `pytorch`
 independent way. This allows datasets reuse with other frameworks.
@@ -78,10 +91,11 @@ based on its name.  The `get_toyzero_dataset_torch` will select a
 
 ## Scripts
 
-You can find three scripts in the `scripts` directory:
+You can find four scripts in the `scripts` directory:
 1. `preprocess`
 2. `view_dataset`
 3. `train_test_split`
+4. `precrop`
 
 ### preprocess
 
@@ -106,6 +120,16 @@ mode (when the ```--plotdir``` argument is specified).
 
 This script can be used to split the preprocessed list of image crops
 (created with the `preprocess` script) into training and test parts.
+
+### precrop
+
+This script extracts cropped regions found with `preprocess` script and saves
+them as seperate images, performing training/validation split in process. The
+extracted cropped regions have their background value subtracted as well. They
+can be loaded with the `PreCroppedToyzeroDataset` dataset.
+
+Extracting cropped regions significantly speeds up subsequent data loading.
+
 
 # Usage Examples
 
