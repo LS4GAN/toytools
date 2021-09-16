@@ -72,7 +72,10 @@ class CroppingExtractorWorker:
 
         crop = crop_image(image, crop_region)
         crop = (crop - sample.bkg)
-        path = os.path.join(savedir, sample.image)
+
+        basename, ext = os.path.splitext(sample.image)
+        fname = '%s_%dx%d%s' % (basename, sample.x, sample.y, ext)
+        path  = os.path.join(savedir, fname)
 
         np.savez_compressed(path, crop)
 
