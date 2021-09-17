@@ -185,3 +185,20 @@ This script will load the toyzero image crops from the file
 plots under `/path/to/plot_dir`.
 
 
+## Extracting Image Crops
+
+Loading entire event images from the disk is a very slow process and could
+easily make the training CPU bound. To speed up image loading, one can add one
+more preprocessing step and extract image crops with the help of the `precrop`
+script. For example, running
+```
+python scripts/precrop /path/to/data/LABEL-U-512x512.csv /output/directory
+```
+
+will extract image crops according to the precomputed file
+`LABEL-U-512x512.csv` and save them as `.npz` files under `/output/directory`.
+
+The resulted crops can be later loaded with the help of the
+`PreCroppedToyzeroDataset` dataset.
+
+
