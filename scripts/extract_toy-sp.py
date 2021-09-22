@@ -1,20 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# ==================================================================================================================
-# ============================================== Extract toy-sp data  ============================================== 
-# The script include three parts:
-# 1. Extract the downloaded tar files and save only the images. 
-#	We have 1000 tar files, each generated with a random seed. 
-#	This step also save images extracted from the tar file with seed `<seed>` to `<folder_base>/seed-<seed>`. 
-# 2. Gather all images generated with different seeds and save them to`<folder_base>/merged`. 
-#	We have to modified the image filename since images generated with different seed shared the same set of names. 
-#	We do so by plugging in the seed. After the modification, each file in the merged folder is named as:
-#	> `protodune-<seed>-<apa>-<event>-<plane>.npz` 
-#	(@Brett, I removed the gauss in the name. Let me know if it is a bad idea.)
-# 3. (Optional) Do a sanity check by plotting the fake and real images and their difference. 
-# ==================================================================================================================
-# ==================================================================================================================
 
 
 import pandas as pd
