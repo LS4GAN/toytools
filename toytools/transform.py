@@ -107,7 +107,7 @@ def scan_simple(vec):
     """
     return np.count_nonzero(np.abs(vec[1:] - vec[:-1])) >= 3
 
-def isMultiTrack(x, kernel_size=2, stride=2, fraction=.05):
+def is_multi_track(x, kernel_size=2, stride=2, fraction=.05):
     """
     Determined the presence of multitracks
     Input:
