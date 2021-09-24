@@ -97,27 +97,6 @@ def multitrack_preprocess(x, kernel_size=2, stride=2):
     return output.squeeze().numpy()
 
 
-# def scan(vec):
-#     """
-#     Given a 0-1 vector, determine the number of consecutive sections of 1s.
-#     For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
-#     Input:
-#         - vec (any 1-dimensional iterable): a 0-1 vector
-#     Output (int): the number of consecutive sections of 1s
-#     """
-#     count = 0
-#     one = False
-#     for v in vec:
-#         if v == 0 and one:
-#             count += 1
-#             one = False
-#             continue
-#         if v == 1 and not one:
-#             one = True
-#             continue
-#     return count + int(one)
-
-
 def scan_simple(vec):
     """
     Given a 0-1 vector, determine the number of consecutive sections of 1s.
@@ -126,20 +105,7 @@ def scan_simple(vec):
         - vec (any 1-dimensional iterable): a 0-1 vector
     Output (bool): whether vec contains at least two consecutive sections of 1s
     """
-    count = 0
-    one = False
-    for v in vec:
-        if v == 0 and one:
-            count += 1
-            if count == 2:
-                break
-            one = False
-            continue
-        if v == 1 and not one:
-            one = True
-            continue
-    return count == 2
-
+    return np.count_nonzero(np.abs(vec[1:] - vec[:-1])) >= 3
 
 def isMultiTrack(x, kernel_size=2, stride=2, fraction=.05):
     """
@@ -155,12 +121,9 @@ def isMultiTrack(x, kernel_size=2, stride=2, fraction=.05):
     """
     y = multitrack_preprocess(x, kernel_size=kernel_size, stride=stride)
     # scan vertically
-#     v = np.array([scan(row) for row in y])
     v = np.array([scan_simple(row) for row in y])
     # scan horizontally
-#     h = np.array([scan(y[:, j]) for j in range(len(y[0]))])
     h = np.array([scan_simple(y[:, j]) for j in range(len(y[0]))])
-#      m = sum(v >= 2) + sum(h >= 2)
     m = sum(v) + sum(h)
     return m / (len(v) + len(h)) >= fraction
 # ============================= Find Multi-track windows ===========================
