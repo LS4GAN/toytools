@@ -75,26 +75,6 @@ def try_find_region_with_signal(
 
 #===================================================================================
 # ============================= Find Multi-track windows ===========================
-# def multitrack_preprocess(x, kernel_size=2, stride=2):
-#     """
-#     Preprocessing steps for multitrack detections.
-#     Input:
-#         - x (numpy.ndarray): the input image of shape (H, W)
-#         - kernel_size (int): the kernel size of torch.AvgPool2d
-#         - stride (int): the stride of torch.AvgPool2d
-#     Output (numpy.ndarray): the processed 0-1 image
-#     """
-#     x = np.abs(x)
-#     x[x > 0] = 1
-#     with torch.no_grad():
-#         x = torch.as_tensor(x).to(torch.float32)
-#         input_tensor = x.view(1, 1, x.shape[0], x.shape[1])
-#         avgpool = nn.AvgPool2d(kernel_size, stride=stride)
-#         output = avgpool(input_tensor)
-#         output[output > 0] = 1
-#     return output.squeeze().numpy()
-
-
 def multitrack_preprocess(x, kernel_size=2):
     """
     Preprocessing steps for multitrack detections.
