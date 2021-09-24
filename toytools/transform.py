@@ -134,10 +134,10 @@ def is_multi_track(x, kernel_size=2, fraction=.05, sample_fraction=.5):
         - fraction (float): the fraction of 1-d scan vectors
             with more than one consecutive sections of 1s to
             qualify a image as having multi-tracks.
-		- sample_fraction(float in (0, 1]: The fraction of rows and columns
-			sampled for scanning.
-			(For 128x128 image, choosing sample_fraction as low as .2
-			won't signiifcantly affect multitrack-finding.)
+        - sample_fraction(float in (0, 1]: The fraction of rows and columns
+            sampled for scanning.
+            (For 128x128 image, choosing sample_fraction as low as .2
+            won't signiifcantly affect multitrack-finding.)
     Output (bool): whether the image x has multiple tracks.
     """
     y = multitrack_preprocess(x, kernel_size=kernel_size)
