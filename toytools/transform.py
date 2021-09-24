@@ -2,6 +2,8 @@
 
 from typing import Tuple
 import numpy as np
+import torch
+import torch.nn as nn
 
 def get_background_value(image):
     """Return inferred background value of image"""
@@ -76,64 +78,90 @@ def try_find_region_with_signal(
 #===================================================================================
 # ============================= Find Multi-track windows ===========================
 def multitrack_preprocess(x, kernel_size=2, stride=2):
-	"""
-	Preprocessing steps for multitrack detections.
-	Input:
-		- x (numpy.ndarray): the input image of shape (H, W)
-		- kernel_size (int): the kernel size of torch.AvgPool2d
-		- stride (int): the stride of torch.AvgPool2d
-	Output (numpy.ndarray): the processed 0-1 image
-	"""
+    """
+    Preprocessing steps for multitrack detections.
+    Input:
+        - x (numpy.ndarray): the input image of shape (H, W)
+        - kernel_size (int): the kernel size of torch.AvgPool2d
+        - stride (int): the stride of torch.AvgPool2d
+    Output (numpy.ndarray): the processed 0-1 image
+    """
     x = np.abs(x)
     x[x > 0] = 1
     with torch.no_grad():
-        x = torch.tensor(x).to(torch.float)
-        input = x.view(1, 1, x.shape[0], x.shape[1])
+        x = torch.as_tensor(x).to(torch.float32)
+        input_tensor = x.view(1, 1, x.shape[0], x.shape[1])
         avgpool = nn.AvgPool2d(kernel_size, stride=stride)
-        output = avgpool(input)
+        output = avgpool(input_tensor)
         output[output > 0] = 1
     return output.squeeze().numpy()
 
 
-def scan(vec):
-	"""
-	Given a 0-1 vector, determine the number of consecutive sections of 1s.
-	For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
-	Input:
-		- vec (any 1-dimensional iterable): a 0-1 vector
-	Output (int): the number of consecutive sections of 1s
-	"""
+# def scan(vec):
+#     """
+#     Given a 0-1 vector, determine the number of consecutive sections of 1s.
+#     For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
+#     Input:
+#         - vec (any 1-dimensional iterable): a 0-1 vector
+#     Output (int): the number of consecutive sections of 1s
+#     """
+#     count = 0
+#     one = False
+#     for v in vec:
+#         if v == 0 and one:
+#             count += 1
+#             one = False
+#             continue
+#         if v == 1 and not one:
+#             one = True
+#             continue
+#     return count + int(one)
+
+
+def scan_simple(vec):
+    """
+    Given a 0-1 vector, determine the number of consecutive sections of 1s.
+    For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
+    Input:
+        - vec (any 1-dimensional iterable): a 0-1 vector
+    Output (bool): whether vec contains at least two consecutive sections of 1s
+    """
     count = 0
     one = False
     for v in vec:
         if v == 0 and one:
             count += 1
+            if count == 2:
+                break
             one = False
             continue
         if v == 1 and not one:
             one = True
             continue
-    return count + int(one)
+    return count == 2
 
 
 def isMultiTrack(x, kernel_size=2, stride=2, fraction=.05):
-	"""
-	Determined the presence of multitracks
-	Input:
-		- x (numpy.ndarray): the input image of x shape (H, W)
-		- kernel_size (int): the kernel size of torch.AvgPool2d
-		- stride (int): the stride of torch.AvgPool2d
-		- fraction (float): the fraction of 1-d scan vectors 
-			with more than one consecutive sections of 1s to
-			qualify a image as having multi-tracks.
-	Output (bool): whether the image x has multiple tracks.
-	"""
+    """
+    Determined the presence of multitracks
+    Input:
+        - x (numpy.ndarray): the input image of x shape (H, W)
+        - kernel_size (int): the kernel size of torch.AvgPool2d
+        - stride (int): the stride of torch.AvgPool2d
+        - fraction (float): the fraction of 1-d scan vectors
+            with more than one consecutive sections of 1s to
+            qualify a image as having multi-tracks.
+    Output (bool): whether the image x has multiple tracks.
+    """
     y = multitrack_preprocess(x, kernel_size=kernel_size, stride=stride)
-	# scan vertically
-    v = np.array([scan(row) for row in y])
-	# scan horizontally
-    h = np.array([scan(y[:, j]) for j in range(len(y[0]))])
-    m = sum(v >= 2) + sum(h >= 2)
+    # scan vertically
+#     v = np.array([scan(row) for row in y])
+    v = np.array([scan_simple(row) for row in y])
+    # scan horizontally
+#     h = np.array([scan(y[:, j]) for j in range(len(y[0]))])
+    h = np.array([scan_simple(y[:, j]) for j in range(len(y[0]))])
+#      m = sum(v >= 2) + sum(h >= 2)
+    m = sum(v) + sum(h)
     return m / (len(v) + len(h)) >= fraction
 # ============================= Find Multi-track windows ===========================
 #===================================================================================
