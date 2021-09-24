@@ -2,8 +2,6 @@
 
 from typing import Tuple
 import numpy as np
-import torch
-import torch.nn as nn
 
 def get_background_value(image):
     """Return inferred background value of image"""
@@ -77,24 +75,42 @@ def try_find_region_with_signal(
 
 #===================================================================================
 # ============================= Find Multi-track windows ===========================
-def multitrack_preprocess(x, kernel_size=2, stride=2):
+# def multitrack_preprocess(x, kernel_size=2, stride=2):
+#     """
+#     Preprocessing steps for multitrack detections.
+#     Input:
+#         - x (numpy.ndarray): the input image of shape (H, W)
+#         - kernel_size (int): the kernel size of torch.AvgPool2d
+#         - stride (int): the stride of torch.AvgPool2d
+#     Output (numpy.ndarray): the processed 0-1 image
+#     """
+#     x = np.abs(x)
+#     x[x > 0] = 1
+#     with torch.no_grad():
+#         x = torch.as_tensor(x).to(torch.float32)
+#         input_tensor = x.view(1, 1, x.shape[0], x.shape[1])
+#         avgpool = nn.AvgPool2d(kernel_size, stride=stride)
+#         output = avgpool(input_tensor)
+#         output[output > 0] = 1
+#     return output.squeeze().numpy()
+
+
+def multitrack_preprocess(x, kernel_size=2):
     """
     Preprocessing steps for multitrack detections.
     Input:
         - x (numpy.ndarray): the input image of shape (H, W)
-        - kernel_size (int): the kernel size of torch.AvgPool2d
-        - stride (int): the stride of torch.AvgPool2d
+        - kernel_size (int): the kernel size of the average pooling
     Output (numpy.ndarray): the processed 0-1 image
     """
     x = np.abs(x)
     x[x > 0] = 1
-    with torch.no_grad():
-        x = torch.as_tensor(x).to(torch.float32)
-        input_tensor = x.view(1, 1, x.shape[0], x.shape[1])
-        avgpool = nn.AvgPool2d(kernel_size, stride=stride)
-        output = avgpool(input_tensor)
-        output[output > 0] = 1
-    return output.squeeze().numpy()
+    height, width = x.shape
+    height_k, width_k = height // kernel_size, width // kernel_size
+    new_shape = (height_k, kernel_size, width_k, kernel_size)
+    y = x[:height_k * kernel_size, :width_k * kernel_size].reshape(*new_shape).mean(axis=(1, 3))
+    y[y > 0] = 1
+    return y
 
 
 def scan_simple(vec):
@@ -107,7 +123,8 @@ def scan_simple(vec):
     """
     return np.count_nonzero(np.abs(vec[1:] - vec[:-1])) >= 3
 
-def is_multi_track(x, kernel_size=2, stride=2, fraction=.05):
+
+def is_multi_track(x, kernel_size=2, fraction=.05):
     """
     Determined the presence of multitracks
     Input:
@@ -119,7 +136,7 @@ def is_multi_track(x, kernel_size=2, stride=2, fraction=.05):
             qualify a image as having multi-tracks.
     Output (bool): whether the image x has multiple tracks.
     """
-    y = multitrack_preprocess(x, kernel_size=kernel_size, stride=stride)
+    y = multitrack_preprocess(x, kernel_size=kernel_size)
     # scan vertically
     v = np.array([scan_simple(row) for row in y])
     # scan horizontally
