@@ -93,17 +93,6 @@ def multitrack_preprocess(x, kernel_size=2):
     return y
 
 
-def scan(vec):
-    """
-    Given a 0-1 vector, determine the number of consecutive sections of 1s.
-    For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
-    Input:
-        - vec (any 1-dimensional iterable): a 0-1 vector
-    Output (bool): whether vec contains at least two consecutive sections of 1s
-    """
-    return np.count_nonzero(np.abs(vec[1:] - vec[:-1])) >= 3
-
-
 def is_multi_track(x, kernel_size=2, fraction=.05, sample_fraction=.5):
     """
     Determined the presence of multitracks
@@ -120,6 +109,17 @@ def is_multi_track(x, kernel_size=2, fraction=.05, sample_fraction=.5):
             won't signiifcantly affect multitrack-finding.)
     Output (bool): whether the image x has multiple tracks.
     """
+
+    def scan(vec):
+        """
+        Given a 0-1 vector, determine the number of consecutive sections of 1s.
+        For example, if the vector is [0,0,1,1,1,0,1], scan should return 2.
+        Input:
+            - vec (any 1-dimensional iterable): a 0-1 vector
+        Output (bool): whether vec contains at least two consecutive sections of 1s
+        """
+        return np.count_nonzero(np.abs(vec[1:] - vec[:-1])) >= 3
+
     y = multitrack_preprocess(x, kernel_size=kernel_size)
 
     # sample rows and columns
