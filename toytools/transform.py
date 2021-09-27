@@ -93,7 +93,7 @@ def multitrack_preprocess(x, kernel_size=2):
     return y
 
 
-def is_multi_track(x, kernel_size=2, fraction=.05, sample_fraction=.5):
+def is_multitrack(x, kernel_size=2, fraction=.05, sample_fraction=.5):
     """
     Determined the presence of multitracks
     Input:
