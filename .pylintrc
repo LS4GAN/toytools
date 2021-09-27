@@ -10,3 +10,6 @@ disable=
     trailing-newlines,
     duplicate-code,
 
+[TYPECHECK]
+generated-members=
+    torch
