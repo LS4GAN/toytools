@@ -9,6 +9,7 @@ disable=
     too-few-public-methods,
     trailing-newlines,
     duplicate-code,
+    consider-using-f-string,
 
 [TYPECHECK]
 generated-members=
