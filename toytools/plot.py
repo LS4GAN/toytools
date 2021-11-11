@@ -6,14 +6,31 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-def drop_ticks(ax):
-    """Remove axes ticks and labels"""
-
+def decorate_axes(
+    ax, ticks = False, grid = False, minor = False, label = False
+):
+    """Modify axes style"""
     ax.tick_params(
         axis = 'both', which = 'both',
-        bottom = False, top = False, left = False, right = False,
-        labelbottom = False, labelleft = False
+        bottom = ticks, top = ticks, left = ticks, right = ticks,
     )
+
+    if not label:
+        ax.tick_params(
+            axis = 'both', which = 'both',
+            labelbottom = False, labelleft = False
+        )
+
+    if minor and ticks:
+        ax.minorticks_on()
+
+    if grid:
+        ax.grid(True, which = 'major', linestyle = 'dashed', linewidth = 1.0)
+
+        if minor:
+            ax.grid(
+                True, which = 'minor', linestyle = 'dashed', linewidth = 0.5
+            )
 
 def get_common_images_range(images, margin = 0.3):
     """Get common color range across multiple images"""
@@ -28,10 +45,13 @@ def get_common_images_range(images, margin = 0.3):
 
     return (vmin, vmax)
 
-def default_image_plot(ax, image, vmin = None, vmax = None, symlog = False):
+# pylint: disable=too-many-arguments
+def default_image_plot(
+    ax, image, vmin = None, vmax = None, ticks = False, grid = False,
+    symlog = False
+):
     """Plot toyzero `image` with default style."""
-
-    drop_ticks(ax)
+    decorate_axes(ax, ticks, grid, minor = True, label = False)
 
     if vmin is None:
         vmin = min(np.min(image), -1)
