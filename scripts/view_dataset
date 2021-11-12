@@ -3,8 +3,6 @@
 # pylint: disable=missing-function-docstring
 
 import argparse
-import json
-import re
 import tqdm
 
 import matplotlib.pyplot as plt
@@ -12,6 +10,11 @@ import matplotlib.pyplot as plt
 from toytools.datasets import get_toyzero_dataset
 from toytools.plot     import (
     save_figure, default_image_plot, get_common_images_range
+)
+from toytools.parsers  import (
+    add_dataset_parser, add_dataset_args_parser, add_index_range_parser,
+    add_colormap_parser, add_log_norm_parser, add_symmetric_norm_parser,
+    parse_index_range
 )
 
 def parse_cmdargs():
@@ -21,38 +24,6 @@ def parse_cmdargs():
         'path',
         help    = 'Directory where toyzero dataset is located',
         metavar = 'PATH',
-        type    = str,
-    )
-
-    parser.add_argument(
-        '--dataset',
-        choices = [
-            'toyzero-simple', 'toyzero-presimple', 'toyzero-precropped',
-            'toyzero-preunaligned'
-        ],
-        default = 'simple',
-        dest    = 'dataset',
-        help    = 'Type of the toyzero Dataset to use.',
-        type    = str,
-    )
-
-    parser.add_argument(
-        '--data_args',
-        default = {},
-        dest    = 'data_args',
-        help    = (
-            "JSON dict of data_args parameters. "
-            "Example: '{ \"seed\": 1, \"val_size\": 0.4  }'"
-        ),
-        type    = json.loads,
-    )
-
-    parser.add_argument(
-        '-i',
-        default = None,
-        dest    = 'index',
-        help    = \
-            'Index or range of indices [first:last) of the samples to plot',
         type    = str,
     )
 
@@ -76,10 +47,19 @@ def parse_cmdargs():
         nargs   = '+',
     )
 
+    add_dataset_parser(parser)
+    add_dataset_args_parser(parser)
+    add_index_range_parser(parser)
+    add_colormap_parser(parser)
+    add_log_norm_parser(parser)
+    add_symmetric_norm_parser(parser)
+
     return parser.parse_args()
 
-def plot_image_pair(img_fake, img_real, vertical = False):
-
+# pylint: disable=too-many-arguments
+def plot_image_pair(
+    img_fake, img_real, cmap, log, symmetric, vertical = False
+):
     subplots_kwargs = {
         'sharex' : True, 'sharey' : True, 'constrained_layout' : True,
     }
@@ -89,10 +69,16 @@ def plot_image_pair(img_fake, img_real, vertical = False):
     else:
         f, axs = plt.subplots(1, 2, **subplots_kwargs)
 
-    color_range = get_common_images_range((img_fake, img_real))
+    plot_kwargs = {
+        'vrange' : get_common_images_range(
+            (img_fake, img_real), symmetric = symmetric
+        ),
+        'cmap'   : cmap,
+        'log'    : log,
+    }
 
-    aximg_fake = default_image_plot(axs[0], img_fake, color_range)
-    _          = default_image_plot(axs[1], img_real, color_range)
+    aximg_fake = default_image_plot(axs[0], img_fake, **plot_kwargs)
+    _          = default_image_plot(axs[1], img_real, **plot_kwargs)
 
     axs[0].set_title('Fake')
     axs[1].set_title('Real')
@@ -104,11 +90,14 @@ def plot_image_pair(img_fake, img_real, vertical = False):
 
     return f, axs
 
-def plot_single_sample(dataset, index, plotdir, ext):
+# pylint: disable=too-many-arguments
+def plot_single_sample(dataset, index, cmap, log, symmetric, plotdir, ext):
     img_fake, img_real = dataset[index]
     vertical = (img_fake.shape[1] > img_fake.shape[0])
 
-    f, _ax = plot_image_pair(img_fake, img_real, vertical)
+    f, _ax = plot_image_pair(
+        img_fake, img_real, cmap, log, symmetric, vertical
+    )
     f.suptitle("Index: %d" % index)
 
     if plotdir is None:
@@ -118,39 +107,23 @@ def plot_single_sample(dataset, index, plotdir, ext):
 
     plt.close(f)
 
-def parse_index_range(dataset, index):
-    if index is None:
-        return range(len(dataset))
-
-    if index.isnumeric():
-        index = int(index)
-        return range(index, index + 1)
-
-    range_re = re.compile(r'(\d*):(\d*)')
-    match    = range_re.match(index)
-
-    if not match:
-        raise ValueError("Failed to parse index range: '%s'" % index)
-
-    first, last = [ (int(x) if x != '' else None) for x in match.groups() ]
-    index_slice = slice(first, last)
-
-    return range(*index_slice.indices(len(dataset)))
-
 def main():
     cmdargs = parse_cmdargs()
     dataset = get_toyzero_dataset(
         cmdargs.dataset, cmdargs.path, **cmdargs.data_args
     )
 
-    index_range = parse_index_range(dataset, cmdargs.index)
+    index_range = parse_index_range(cmdargs.index, len(dataset))
 
     progbar = tqdm.tqdm(
         desc = 'Plotting', total = len(index_range), dynamic_ncols = True
     )
 
     for index in index_range:
-        plot_single_sample(dataset, index, cmdargs.plotdir, cmdargs.ext)
+        plot_single_sample(
+            dataset, index, cmdargs.cmap, cmdargs.log, cmdargs.symmetric,
+            cmdargs.plotdir, cmdargs.ext
+        )
         progbar.update()
 
     progbar.close()
