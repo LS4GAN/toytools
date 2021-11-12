@@ -13,7 +13,7 @@ def decorate_axes(
 ):
     """Modify axes style"""
     ax.tick_params(
-        axis = 'both', which = 'both',
+        axis = 'both', which = 'both', direction = 'in',
         bottom = ticks, top = ticks, left = ticks, right = ticks,
     )
 
@@ -84,7 +84,7 @@ def get_cmap_norm(cmap, vrange, log = False):
 
 # pylint: disable=too-many-arguments
 def default_image_plot(
-    ax, image, vrange = None, ticks = False, grid = False, symmetric = True,
+    ax, image, vrange = None, ticks = True, grid = False, symmetric = False,
     log = False, cmap = 'seismic'
 ):
     """Plot toyzero `image` with default style."""
