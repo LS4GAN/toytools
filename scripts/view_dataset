@@ -57,47 +57,47 @@ def parse_cmdargs():
     return parser.parse_args()
 
 # pylint: disable=too-many-arguments
-def plot_image_pair(
-    img_fake, img_real, cmap, log, symmetric, vertical = False
-):
+def plot_images(images, cmap, log, symmetric, vertical = False):
     subplots_kwargs = {
         'sharex' : True, 'sharey' : True, 'constrained_layout' : True,
     }
 
+    n = len(images)
+
     if vertical:
-        f, axs = plt.subplots(2, 1, **subplots_kwargs)
+        f, axs = plt.subplots(n, 1, **subplots_kwargs)
     else:
-        f, axs = plt.subplots(1, 2, **subplots_kwargs)
+        f, axs = plt.subplots(1, n, **subplots_kwargs)
+
+    if n == 1:
+        axs = [ axs, ]
 
     plot_kwargs = {
-        'vrange' : get_common_images_range(
-            (img_fake, img_real), symmetric = symmetric
-        ),
+        'vrange' : get_common_images_range(images, symmetric = symmetric),
         'cmap'   : cmap,
         'log'    : log,
     }
 
-    aximg_fake = default_image_plot(axs[0], img_fake, **plot_kwargs)
-    _          = default_image_plot(axs[1], img_real, **plot_kwargs)
-
-    axs[0].set_title('Fake')
-    axs[1].set_title('Real')
+    for (ax, image) in zip(axs, images):
+        aximg = default_image_plot(ax, image, **plot_kwargs)
 
     if vertical:
-        f.colorbar(aximg_fake, ax = axs, location = 'right')
+        f.colorbar(aximg, ax = axs, location = 'right')
     else:
-        f.colorbar(aximg_fake, ax = axs, location = 'bottom')
+        f.colorbar(aximg, ax = axs, location = 'bottom')
 
     return f, axs
 
 # pylint: disable=too-many-arguments
 def plot_single_sample(dataset, index, cmap, log, symmetric, plotdir, ext):
-    img_fake, img_real = dataset[index]
-    vertical = (img_fake.shape[1] > img_fake.shape[0])
+    images = dataset[index]
 
-    f, _ax = plot_image_pair(
-        img_fake, img_real, cmap, log, symmetric, vertical
-    )
+    if not isinstance(images, (tuple, list)):
+        images = [ images, ]
+
+    vertical = (images[0].shape[1] > images[0].shape[0])
+
+    f, _ax = plot_images(images, cmap, log, symmetric, vertical)
     f.suptitle("Index: %d" % index)
 
     if plotdir is None:
