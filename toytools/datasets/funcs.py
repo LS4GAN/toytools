@@ -7,26 +7,20 @@ from .preunaligned_toyzero    import PreUnalignedToyzeroDataset
 from .precropped_toyzero      import PreCroppedToyzeroDataset
 from .precropped_toyzero_v1   import PreCroppedToyzeroDatasetV1
 
+DATASET_DICT = {
+    'toyzero-simple'        : SimpleToyzeroDataset,
+    'toyzero-presimple'     : PreSimpleToyzeroDataset,
+    'toyzero-preunaligned'  : PreUnalignedToyzeroDataset,
+    'toyzero-precropped'    : PreCroppedToyzeroDataset,
+    'toyzero-precropped-v1' : PreCroppedToyzeroDatasetV1,
+    'toyzero-presimple-v1'  : PreSimpleToyzeroDatasetV1,
+}
+
 def get_toyzero_dataset(name, path, **data_args):
     """Return toyzero dataset based on its name"""
 
-    if name == 'toyzero-simple':
-        return SimpleToyzeroDataset(path, **data_args)
+    if name not in DATASET_DICT:
+        raise ValueError("Unknown dataset name: %s" % name)
 
-    if name == 'toyzero-presimple':
-        return PreSimpleToyzeroDataset(path, **data_args)
-
-    if name == 'toyzero-preunaligned':
-        return PreUnalignedToyzeroDataset(path, **data_args)
-
-    if name == 'toyzero-precropped':
-        return PreCroppedToyzeroDataset(path, **data_args)
-
-    if name == 'toyzero-precropped-v1':
-        return PreCroppedToyzeroDatasetV1(path, **data_args)
-
-    if name == 'toyzero-presimple-v1':
-        return PreSimpleToyzeroDatasetV1(path, **data_args)
-
-    raise ValueError("Unknown toyzero dataset name: %s" % name)
+    return DATASET_DICT[name](path, **data_args)
 
