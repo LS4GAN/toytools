@@ -4,15 +4,16 @@ import json
 import re
 from typing import Optional
 
+from .datasets.funcs import DATASET_DICT
+
 def add_dataset_parser(parser):
     # pylint: disable=missing-function-docstring
+    datasets = list(DATASET_DICT.keys())
+
     parser.add_argument(
         '--dataset',
-        choices = [
-            'toyzero-simple', 'toyzero-presimple', 'toyzero-precropped',
-            'toyzero-preunaligned'
-        ],
-        default = 'toyzero-simple',
+        choices = datasets,
+        default = datasets[0],
         dest    = 'dataset',
         help    = 'type of the toyzero dataset to use',
         type    = str,
@@ -89,5 +90,4 @@ def parse_index_range(index : Optional[str], full_len : int) -> range:
     index_slice = slice(first, last)
 
     return range(*index_slice.indices(full_len))
-
 
