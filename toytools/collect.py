@@ -6,8 +6,7 @@ import re
 from typing import List, Tuple, Optional, Set, Union
 import numpy as np
 
-DIR_FAKE = 'fake'
-DIR_REAL = 'real'
+from .consts import DIR_FAKE, DIR_REAL
 
 def find_images_in_dir(path : str) -> List[str]:
     """Return sorted list of '*.npz' files in `path`"""
