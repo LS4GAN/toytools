@@ -10,11 +10,14 @@ import tqdm
 import numpy  as np
 import pandas as pd
 
-from toytools.collect   import train_test_split, load_image
+from toytools.collect import train_val_test_split, load_image
+from toytools.consts  import (
+    DIR_FAKE, DIR_REAL, SPLIT_TRAIN, SPLIT_VAL, SPLIT_TEST
+)
 from toytools.transform import crop_image
 
 def parse_cmdargs():
-    parser = argparse.ArgumentParser("View toyzero dataset")
+    parser = argparse.ArgumentParser("Precompute crops for toyzero dataset")
 
     parser.add_argument(
         'path',
@@ -49,6 +52,17 @@ def parse_cmdargs():
         '--val-size',
         default = 0.2,
         dest    = 'val_size',
+        help    = (
+            'Size of the validation dataset.'
+            'If val-size <= 1, then it is interpreted as a fraction'
+        ),
+        type    = float,
+    )
+
+    parser.add_argument(
+        '--test-size',
+        default = 0,
+        dest    = 'test_size',
         help    = (
             'Size of the test dataset.'
             'If val-size <= 1, then it is interpreted as a fraction'
@@ -89,17 +103,19 @@ class CroppingExtractorWorker:
 def load_dataset(path):
     return pd.read_csv(path, index_col = 'index')
 
-def split_into_train_test_parts(df, val_size, shuffle, seed):
+def split_into_parts(df, val_size, test_size, shuffle, seed):
     prg = None
 
     if shuffle:
         prg = np.random.default_rng(seed)
 
-    train_indices, test_indices = train_test_split(
-        len(df), val_size, shuffle, prg
+    train_indices, val_indices, test_indices = train_val_test_split(
+        len(df), val_size, test_size, shuffle, prg
     )
 
-    return (df.iloc[train_indices], df.iloc[test_indices])
+    return (
+        df.iloc[train_indices], df.iloc[val_indices], df.iloc[test_indices]
+    )
 
 def extract_crops(data_root, df, savedir_fake, savedir_real):
     os.makedirs(savedir_fake, exist_ok = True)
@@ -117,29 +133,33 @@ def extract_crops(data_root, df, savedir_fake, savedir_real):
 
     progbar.close()
 
-def extract(data_root, df_train, df_val, outdir):
-    savedir_train_fake = os.path.join(outdir, 'train', 'fake')
-    savedir_train_real = os.path.join(outdir, 'train', 'real')
-    savedir_val_fake   = os.path.join(outdir, 'val', 'fake')
-    savedir_val_real   = os.path.join(outdir, 'val', 'real')
-
+def extract(data_root, df_train, df_val, df_test, outdir):
     print("Extracting Training Crops")
-    extract_crops(data_root, df_train, savedir_train_fake, savedir_train_real)
+    dir_fake = os.path.join(outdir, SPLIT_TRAIN, DIR_FAKE)
+    dir_real = os.path.join(outdir, SPLIT_TRAIN, DIR_REAL)
+    extract_crops(data_root, df_train, dir_fake, dir_real)
 
     print("Extracting Validation Crops")
-    extract_crops(data_root, df_val,   savedir_val_fake,   savedir_val_real)
+    dir_fake = os.path.join(outdir, SPLIT_VAL, DIR_FAKE)
+    dir_real = os.path.join(outdir, SPLIT_VAL, DIR_REAL)
+    extract_crops(data_root, df_val, dir_fake, dir_real)
+
+    print("Extracting Test Crops")
+    dir_fake = os.path.join(outdir, SPLIT_TEST, DIR_FAKE)
+    dir_real = os.path.join(outdir, SPLIT_TEST, DIR_REAL)
+    extract_crops(data_root, df_test, dir_fake, dir_real)
 
 def main():
     cmdargs = parse_cmdargs()
 
     df = load_dataset(cmdargs.path)
 
-    df_train, df_val = split_into_train_test_parts(
-        df, cmdargs.val_size, cmdargs.shuffle, cmdargs.seed
+    df_train, df_val, df_test = split_into_parts(
+        df, cmdargs.val_size, cmdargs.test_size, cmdargs.shuffle, cmdargs.seed
     )
 
     data_root = os.path.dirname(cmdargs.path)
-    extract(data_root, df_train, df_val, cmdargs.outdir)
+    extract(data_root, df_train, df_val, df_test, cmdargs.outdir)
 
 if __name__ == '__main__':
     main()
