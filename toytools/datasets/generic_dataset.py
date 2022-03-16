@@ -1,5 +1,14 @@
 # pylint: disable=missing-module-docstring
 
+from toytools.collect import DIR_FAKE, DIR_REAL
+
+DOMAIN_MAP = {
+    'a'    : DIR_FAKE,
+    'fake' : DIR_FAKE,
+    'b'    : DIR_REAL,
+    'real' : DIR_REAL,
+}
+
 class GenericDataset:
     """Abstract class for toyzero Dataset"""
 

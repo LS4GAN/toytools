@@ -6,8 +6,7 @@ import re
 from typing import List, Tuple, Optional, Set, Union
 import numpy as np
 
-DIR_FAKE = 'fake'
-DIR_REAL = 'real'
+from .consts import DIR_FAKE, DIR_REAL
 
 def find_images_in_dir(path : str) -> List[str]:
     """Return sorted list of '*.npz' files in `path`"""
@@ -120,6 +119,60 @@ def load_image(root : str, is_fake : bool, name : str) -> np.ndarray:
     with np.load(path) as f:
         return f[f.files[0]]
 
+def train_val_test_split(
+    n         : int,
+    val_size  : Union[int, float],
+    test_size : Union[int, float],
+    shuffle   : bool,
+    prg       : np.random.Generator,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Split dataset of size `n` into training/val/test parts.
+
+    Parameters
+    ----------
+    n : int
+        Size of the dataset to split.
+    val_size : int or float
+        Fraction of the dataset that will be used as a val sample.
+        If `val_size` <= 1, then it is treated as a fraction, i.e.
+        (size of test sample) = `val_size` * (size of toyzero dataset)
+        Otherwise, (size of val sample) = `val_size`.
+    test_size : int or float
+        Fraction of the dataset that will be used as a test sample.
+        If `test_size` <= 1, then it is treated as a fraction, i.e.
+        (size of test sample) = `test_size` * (size of toyzero dataset)
+        Otherwise, (size of test sample) = `test_size`.
+    shuffle : bool
+        Whether to shuffle dataset
+    prg : np.random.Generator
+        RNG that will be used for shuffling the dataset.
+        This parameter has no effect if `shuffle` is False.
+
+    Returns
+    -------
+    (train_indices, val_indices, test_indices) : (ndarray, ndarray, ndarray)
+        Indices of training/val/test samples.
+
+    """
+    indices = np.arange(n)
+
+    if shuffle:
+        prg.shuffle(indices)
+
+    if test_size <= 1:
+        test_size = int(len(indices) * test_size)
+
+    if val_size <= 1:
+        val_size = int(len(indices) * val_size)
+
+    train_size = max(0, int(len(indices) - val_size - test_size))
+
+    train_indices = indices[:train_size]
+    val_indices   = indices[train_size:train_size+val_size]
+    test_indices  = indices[train_size+val_size:]
+
+    return (train_indices, val_indices, test_indices)
+
 def train_test_split(
     n         : int,
     test_size : Union[int, float],
@@ -149,18 +202,10 @@ def train_test_split(
         Indices of training and validation samples.
 
     """
-    indices = np.arange(n)
 
-    if shuffle:
-        prg.shuffle(indices)
-
-    if test_size <= 1:
-        test_size = int(len(indices) * test_size)
-
-    train_size = max(0, int(len(indices) - test_size))
-
-    train_indices = indices[:train_size]
-    test_indices  = indices[train_size:]
+    train_indices, _val_indices, test_indices = train_val_test_split(
+        n, val_size = 0, test_size = test_size, shuffle = shuffle, prg = prg
+    )
 
     return (train_indices, test_indices)
 

@@ -26,7 +26,25 @@ Below you will find a brief overview of each.
 
 
 ## PyTorch Datasets
-At this moment only two PyTorch Datasets are implemented:
+
+Logically, there are two classes of toyzero datasets:
+
+- Version 0 datasets: `SimpleToyzeroDataset`, `PreSimpleToyzeroDataset`,
+  `PreUnalignedToyzeroDataset`, `PreCroppedToyzeroDataset`. These datasets
+  return pairs of images, where the first element is from domain "a" ("fake"
+  domain) and the second is from domain "b" ("real" domain).
+
+  These datasets implement their own random sampling that is not easy to use in
+  a multiprocessing setting.
+
+- Version 1 datasets: `PreSimpleToyzeroDatasetV1`,
+  `PreCroppedToyzeroDatasetV1`.  These datasets are similar to their v0
+  counterparts, but return a single image, either from domain "a" or domain
+  "b", depending on how they were instantiated.
+
+  Version 1 datasets support only deterministic sampling and therefore require
+  a separate random sampler. But, on the upside, there are no surprises when
+  one uses these datasets in the multiprocessing setting.
 
 
 ### SimpleToyzeroDataset
