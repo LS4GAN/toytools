@@ -1,5 +1,7 @@
 # pylint: disable=missing-module-docstring
 import os
+import ctypes
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
 
@@ -53,6 +55,7 @@ class PreSimpleToyzeroDataset(GenericDataset):
         shuffle          = True,
         transform        = None,
         val_size         = 0.2,
+        is_in_mem        = False,
     ):
         super().__init__(path)
 
@@ -62,9 +65,12 @@ class PreSimpleToyzeroDataset(GenericDataset):
         self._transform = transform
         self._prg       = np.random.default_rng(seed)
         self._val_size  = val_size
+        self._is_in_mem = is_in_mem
 
         self._df = pd.read_csv(os.path.join(path, fname), index_col = 'index')
-        self._split_dataset()
+        self._df = self._split_dataset()
+        if is_in_mem:
+            self._shared_data = self._preload_data()
 
     def _split_dataset(self):
         """Split dataset into training/validation parts."""
@@ -77,12 +83,20 @@ class PreSimpleToyzeroDataset(GenericDataset):
         else:
             indices = val_indices
 
-        self._df = self._df.iloc[indices]
+        return self._df.iloc[indices]
 
-    def __len__(self):
-        return len(self._df)
+    def _preload_data(self):
+        data_sz = len(self._df)
+        img, _ = self._load_image_pair(0)
+        h, w = img.shape
+        shared_alloc = mp.Array(ctypes.c_float, data_sz * 2 * h * w)
+        shared_data = np.ctypeslib.as_array(shared_alloc.get_obj())
+        shared_data = shared_data.reshape(data_sz, 2, h, w)
+        for i in range(data_sz):
+            shared_data[i][0], shared_data[i][1] = self._load_image_pair(i)
+        return shared_data
 
-    def __getitem__(self, index):
+    def _load_image_pair(self, index):
         sample = self._df.iloc[index]
 
         image_fake = load_image(self._path, True,  sample.image)
@@ -96,8 +110,18 @@ class PreSimpleToyzeroDataset(GenericDataset):
         images = [ (x - sample.bkg)           for x in images ]
         images = [ x.astype(np.float32)       for x in images ]
 
+        return images
+
+    def __len__(self):
+        return len(self._df)
+
+    def __getitem__(self, index):
+        if self._is_in_mem:
+            images = [self._shared_data[index][0], self._shared_data[index][1]]
+        else:
+            images = self._load_image_pair(index)
+
         if self._transform is not None:
             images = [ self._transform(x) for x in images ]
 
         return images
-
