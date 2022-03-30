@@ -160,12 +160,14 @@ def train_val_test_split(
         prg.shuffle(indices)
 
     if test_size <= 1:
-        test_size = int(len(indices) * test_size)
+        test_size = len(indices) * test_size
 
     if val_size <= 1:
-        val_size = int(len(indices) * val_size)
+        val_size = len(indices) * val_size
 
-    train_size = max(0, int(len(indices) - val_size - test_size))
+    test_size  = int(test_size)
+    val_size   = int(val_size)
+    train_size = max(0, len(indices) - val_size - test_size)
 
     train_indices = indices[:train_size]
     val_indices   = indices[train_size:train_size+val_size]
