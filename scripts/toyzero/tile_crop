@@ -1,0 +1,217 @@
+#!/usr/bin/env python
+"""Tile crop toyzero data"""
+# pylint: disable=missing-function-docstring
+
+import argparse
+import json
+import itertools
+import os
+import multiprocessing
+
+from collections import namedtuple
+
+import numpy as np
+import tqdm
+
+from toytools.collect import (
+    collect_split_toyzero_images, validate_image_hierarchy_paired
+)
+from toytools.transform import crop_image, get_background_value, is_image_empty
+
+Config = namedtuple('Config', [ 'root', 'outdir', 'shape', 'min_signal' ])
+
+def parse_cmdargs():
+    parser = argparse.ArgumentParser("Tile toyzero crops")
+
+    parser.add_argument(
+        'path',
+        help    = 'path to the cropped dataset',
+        metavar = 'PATH',
+        type    = str,
+    )
+
+    parser.add_argument(
+        'outdir',
+        help    = 'directory where to save tiled dataset',
+        metavar = 'OUTDIR',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '-s', '--shape',
+        default  = None,
+        dest     = 'shape',
+        help     = "shape of the crop 'HEIGHTxWIDTH'",
+        required = True,
+        type     = lambda s : tuple(int(x) for x in s.split('x'))
+    )
+
+    parser.add_argument(
+        '--min-signal',
+        default = 10,
+        dest    = 'min_signal',
+        help    = 'minimum number of signal pixels to consider image nonempty',
+        type    = int,
+    )
+
+    return parser.parse_args()
+
+class TilingWorker:
+    # pylint: disable=missing-class-docstring
+
+    def __init__(self, config, split_dir, domain_dirs):
+        # pylint: disable=too-many-arguments
+        self._outdir      = config.outdir
+        self._root        = config.root
+        self._shape       = config.shape
+        self._min_signal  = config.min_signal
+        self._split_dir   = split_dir
+        self._domain_dirs = domain_dirs
+
+    def _get_output_path(self, domain_dir, fname, crop_index):
+        savedir = os.path.join(self._outdir, self._split_dir, domain_dir)
+
+        crop_fname, ext = os.path.splitext(fname)
+        crop_fname = crop_fname + f'_tile_{crop_index}' + ext
+
+        return os.path.join(savedir, crop_fname)
+
+    @staticmethod
+    def load_toyzero_image(path):
+        with np.load(path) as f:
+            image = f[f.files[0]]
+
+        bkg_value = get_background_value(image)
+
+        return (image - bkg_value)
+
+    @staticmethod
+    def get_images_shape(images):
+        if len(images) == 0:
+            return True
+
+        shapes = [ image.shape for image in images ]
+        return shapes[0]
+
+    def _are_images_above_threshold(self, images):
+        for image in images:
+            if is_image_empty(
+                image, bkg_value = 0, min_signal = self._min_signal
+            ):
+                return False
+
+        return True
+
+    def _get_grid_shape(self, image_shape):
+        (H, W) = image_shape
+        m, rm  = divmod(H, self._shape[0])
+        n, rn  = divmod(W, self._shape[1])
+
+        if (rm != 0) or (rn != 0):
+            raise RuntimeError(
+                f"Image size {image_shape} is not divisible by crop size"
+                f" {self._shape}"
+            )
+
+        return (m, n)
+
+    def _run_tiling_loop(self, m, n, images, fname):
+        for (j, i) in itertools.product(range(m), range(n)):
+            y0 = j * self._shape[0]
+            x0 = i * self._shape[1]
+
+            crop_index  = j * n + i
+            crop_region = (y0, x0, *self._shape)
+
+            crops = [
+                crop_image(image, crop_region = crop_region)
+                    for image in images
+            ]
+
+            if not self._are_images_above_threshold(crops):
+                continue
+
+            for (domain_dir, crop) in zip(self._domain_dirs, crops):
+                path = self._get_output_path(domain_dir, fname, crop_index)
+                np.savez_compressed(path, crop)
+
+    def __call__(self, fname):
+        paths = [
+            os.path.join(self._root, self._split_dir, d, fname)
+                for d in self._domain_dirs
+        ]
+        images = [ TilingWorker.load_toyzero_image(path) for path in paths ]
+
+        shape = TilingWorker.get_images_shape(images)
+        m, n  = self._get_grid_shape(shape)
+
+        self._run_tiling_loop(m, n, images, fname)
+
+def create_config_from_cmdargs(cmdargs):
+    return Config(
+        root       = cmdargs.path,
+        outdir     = cmdargs.outdir,
+        shape      = cmdargs.shape,
+        min_signal = cmdargs.min_signal,
+    )
+
+def prepare_output_directories(outdir, image_hierarchy):
+    for split_dir, image_dict in image_hierarchy.items():
+        split_path = os.path.join(outdir, split_dir)
+        os.makedirs(split_path, exist_ok = True)
+
+        for domain_dir in image_dict.keys():
+            domain_path = os.path.join(split_path, domain_dir)
+            os.makedirs(domain_path, exist_ok = True)
+
+def tile_images(config, image_hierarchy):
+    for (split_dir, image_dict) in image_hierarchy.items():
+        domains, domain_image_fnames = zip(*image_dict.items())
+
+        print(f"Tiling images in '{split_dir}'")
+
+        worker  = TilingWorker(config, split_dir, domains)
+        progbar = tqdm.tqdm(
+            desc = 'Tiling', total = len(domain_image_fnames[0]),
+            dynamic_ncols = True
+        )
+
+        with multiprocessing.Pool() as pool:
+            for _ in pool.imap_unordered(worker, domain_image_fnames[0]):
+                progbar.update()
+
+        progbar.close()
+
+def save_config(config):
+    config_path = os.path.join(config.outdir, 'config.json')
+    config_dict = {
+        'shape'      : config.shape,
+        'min_signal' : config.min_signal,
+    }
+
+    with open(config_path, 'wt') as f:
+        json.dump(config_dict, f, indent = 4)
+
+def main():
+    cmdargs = parse_cmdargs()
+    config  = create_config_from_cmdargs(cmdargs)
+
+    if os.path.exists(config.outdir):
+        raise RuntimeError(
+            f"Output directory {config.outdir} exists. Refusing to overwrite."
+        )
+
+    print("Collecting images...")
+    image_hierarchy = collect_split_toyzero_images(config.root)
+    validate_image_hierarchy_paired(image_hierarchy)
+
+    print("Preparing output directories...")
+    prepare_output_directories(config.outdir, image_hierarchy)
+    save_config(config)
+
+    print("Tiling...")
+    tile_images(config, image_hierarchy)
+
+if __name__ == '__main__':
+    main()
+
