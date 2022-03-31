@@ -1,0 +1,250 @@
+#!/usr/bin/env python
+"""Extract center crops from toyzero data and split into training/test parts"""
+# pylint: disable=missing-function-docstring
+
+import argparse
+import json
+import os
+import multiprocessing
+
+from collections import namedtuple
+import numpy as np
+import tqdm
+
+from toytools.consts import (
+    DIR_FAKE, DIR_REAL, SPLIT_TRAIN, SPLIT_VAL, SPLIT_TEST
+)
+from toytools.collect import (
+    train_val_test_split, load_image,
+    collect_toyzero_images, filter_parsed_images, parse_images
+)
+from toytools.transform import crop_image, get_background_value_fast
+
+Config = namedtuple(
+    'Config',
+    [
+        'path', 'apas', 'planes', 'shape', 'seed', 'shuffle',
+        'test_size', 'val_size'
+    ]
+)
+
+def parse_cmdargs():
+    parser = argparse.ArgumentParser(
+        "Extract center crops from toyzero dataset"
+    )
+
+    parser.add_argument(
+        'path',
+        help    = 'path to the toyzero dataset',
+        metavar = 'PATH',
+        type    = str,
+    )
+
+    parser.add_argument(
+        'outdir',
+        help    = 'directory where to save cropped dataset',
+        metavar = 'OUTDIR',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--apa',
+        default = None,
+        dest    = 'apas',
+        help    = 'APAs to select',
+        type    = int,
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '--plane',
+        default = None,
+        dest    = 'planes',
+        help    = 'wire Planes to select',
+        choices = [ 'U', 'V', 'W', ],
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '-s', '--shape',
+        default  = None,
+        dest     = 'shape',
+        help     = "shape of the crop 'HEIGHTxWIDTH'",
+        required = True,
+        type     = lambda s : tuple(int(x) for x in s.split('x'))
+    )
+
+    parser.add_argument(
+        '--shuffle',
+        action  = 'store_true',
+        dest    = 'shuffle',
+        help    = 'whether to shuffle data',
+    )
+
+    parser.add_argument(
+        '--seed',
+        default = 0,
+        dest    = 'seed',
+        help    = 'seed of a pseudo random generator',
+        type    = int,
+    )
+
+    parser.add_argument(
+        '--val-size',
+        default = 0,
+        dest    = 'val_size',
+        help    = (
+            'size of the validation dataset. '
+            'If val-size <= 1, then it is interpreted as a fraction'
+        ),
+        type    = float,
+    )
+
+    parser.add_argument(
+        '--test-size',
+        default = 0.2,
+        dest    = 'test_size',
+        help    = (
+            'size of the test dataset. '
+            'If test-size <= 1, then it is interpreted as a fraction'
+        ),
+        type    = float,
+    )
+
+    return parser.parse_args()
+
+class CroppingWorker:
+    # pylint: disable=missing-class-docstring
+
+    def __init__(self, root, shape, outdir_real, outdir_fake):
+        self._root        = root
+        self._shape       = shape
+        self._outdir_real = outdir_real
+        self._outdir_fake = outdir_fake
+
+    # pylint: disable=no-self-use
+    def _extract_crop(self, parsed_image, index, outdir, is_fake):
+        image     = load_image(self._root, is_fake, parsed_image[0])
+        bkg_value = get_background_value_fast(image)
+
+        (H, W) = image.shape
+        y0     = (H - self._shape[0]) // 2
+        x0     = (W - self._shape[1]) // 2
+
+        crop = crop_image(image, crop_region = (y0, x0, *self._shape))
+        crop = (crop - bkg_value)
+
+        path = os.path.join(outdir, f'sample_{index}.npz')
+        np.savez_compressed(path, crop)
+
+    def __call__(self, index_parsed_image):
+        (index, parsed_image) = index_parsed_image
+
+        self._extract_crop(
+            parsed_image, index, self._outdir_fake, is_fake = True
+        )
+        self._extract_crop(
+            parsed_image, index, self._outdir_real, is_fake = False
+        )
+
+def create_config_from_cmdargs(cmdargs):
+    def optional_map(fn, x):
+        if x is None:
+            return None
+
+        return fn(x)
+
+    return Config(
+        path      = cmdargs.path,
+        apas      = optional_map(set, cmdargs.apas),
+        planes    = optional_map(set, cmdargs.planes),
+        seed      = cmdargs.seed,
+        shape     = cmdargs.shape,
+        shuffle   = cmdargs.shuffle,
+        test_size = cmdargs.test_size,
+        val_size  = cmdargs.val_size,
+    )
+
+def prepare_image_lists(config):
+    print("Collecting Images...")
+    images = collect_toyzero_images(config.path)
+    parsed_images = parse_images(images)
+
+    print("Filtering Images...")
+    parsed_images = filter_parsed_images(
+        parsed_images, config.apas, config.planes
+    )
+
+    n   = len(parsed_images)
+    prg = np.random.default_rng(config.seed)
+
+    print("Splitting Images...")
+    train_indices, val_indices, test_indices = train_val_test_split(
+        n, config.val_size, config.test_size, config.shuffle, prg
+    )
+
+    train_images = [ parsed_images[i] for i in train_indices ]
+    val_images   = [ parsed_images[i] for i in val_indices   ]
+    test_images  = [ parsed_images[i] for i in test_indices  ]
+
+    return (train_images, val_images, test_images)
+
+def extract_images(root, images, shape, outdir):
+    outdir_real = os.path.join(outdir, DIR_REAL)
+    outdir_fake = os.path.join(outdir, DIR_FAKE)
+
+    os.makedirs(outdir_real, exist_ok = True)
+    os.makedirs(outdir_fake, exist_ok = True)
+
+    progbar = tqdm.tqdm(
+        desc = 'Cropping', total = len(images), dynamic_ncols = True
+    )
+
+    worker = CroppingWorker(root, shape, outdir_real, outdir_fake)
+
+    with multiprocessing.Pool() as pool:
+        for _ in pool.imap_unordered(worker, enumerate(images)):
+            progbar.update()
+
+    progbar.close()
+
+def save_config(outdir, config):
+    os.makedirs(outdir, exist_ok = True)
+    config_path = os.path.join(outdir, 'config.json')
+
+    config_dict = {
+        'apas'    : str(config.apas),
+        'planes'  : str(config.planes),
+        'seed'    : config.seed,
+        'shape'   : config.shape,
+        'shuffle' : config.shuffle,
+    }
+
+    with open(config_path, 'wt') as f:
+        json.dump(config_dict, f)
+
+def main():
+    cmdargs = parse_cmdargs()
+    config  = create_config_from_cmdargs(cmdargs)
+
+    train_images, val_images, test_images = prepare_image_lists(config)
+    save_config(cmdargs.outdir, config)
+
+    if len(train_images) > 0:
+        print("Extracting train crops...")
+        outdir = os.path.join(cmdargs.outdir, SPLIT_TRAIN)
+        extract_images(config.path, train_images, config.shape, outdir)
+
+    if len(test_images) > 0:
+        print("Extracting test crops...")
+        outdir = os.path.join(cmdargs.outdir, SPLIT_TEST)
+        extract_images(config.path, test_images, config.shape, outdir)
+
+    if len(val_images) > 0:
+        print("Extracting val crops...")
+        outdir = os.path.join(cmdargs.outdir, SPLIT_VAL)
+        extract_images(config.path, val_images, config.shape, outdir)
+
+if __name__ == '__main__':
+    main()
+
