@@ -134,20 +134,23 @@ def extract_crops(data_root, df, savedir_fake, savedir_real):
     progbar.close()
 
 def extract(data_root, df_train, df_val, df_test, outdir):
-    print("Extracting Training Crops")
-    dir_fake = os.path.join(outdir, SPLIT_TRAIN, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_TRAIN, DIR_REAL)
-    extract_crops(data_root, df_train, dir_fake, dir_real)
+    if len(df_train) > 0:
+        print("Extracting Training Crops")
+        dir_fake = os.path.join(outdir, SPLIT_TRAIN, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_TRAIN, DIR_REAL)
+        extract_crops(data_root, df_train, dir_fake, dir_real)
 
-    print("Extracting Validation Crops")
-    dir_fake = os.path.join(outdir, SPLIT_VAL, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_VAL, DIR_REAL)
-    extract_crops(data_root, df_val, dir_fake, dir_real)
+    if len(df_val):
+        print("Extracting Validation Crops")
+        dir_fake = os.path.join(outdir, SPLIT_VAL, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_VAL, DIR_REAL)
+        extract_crops(data_root, df_val, dir_fake, dir_real)
 
-    print("Extracting Test Crops")
-    dir_fake = os.path.join(outdir, SPLIT_TEST, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_TEST, DIR_REAL)
-    extract_crops(data_root, df_test, dir_fake, dir_real)
+    if len(df_test):
+        print("Extracting Test Crops")
+        dir_fake = os.path.join(outdir, SPLIT_TEST, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_TEST, DIR_REAL)
+        extract_crops(data_root, df_test, dir_fake, dir_real)
 
 def main():
     cmdargs = parse_cmdargs()
