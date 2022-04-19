@@ -3,7 +3,8 @@ import os
 import numpy as np
 
 from toytools.collect   import (
-    DIR_FAKE, DIR_REAL, load_image, find_images_in_dir, validate_toyzero_images
+    DIR_FAKE, DIR_REAL, load_toyzero_image, find_images_in_dir,
+    validate_toyzero_images
 )
 from .generic_dataset   import GenericDataset
 
@@ -87,8 +88,8 @@ class PreCroppedToyzeroDataset(GenericDataset):
         fname_fake = self._images_fake[index]
         fname_real = self._images_real[index]
 
-        image_fake = load_image(self._root, True,  fname_fake)
-        image_real = load_image(self._root, False, fname_real)
+        image_fake = load_toyzero_image(self._root, True,  fname_fake)
+        image_real = load_toyzero_image(self._root, False, fname_real)
 
         images = [image_fake,  image_real]
         images = [ x.astype(np.float32) for x in images ]

@@ -2,7 +2,7 @@
 import numpy as np
 
 from toytools.collect   import (
-    collect_toyzero_images, filter_images, load_image, train_test_split
+    collect_toyzero_images, filter_images, load_toyzero_image, train_test_split
 )
 from toytools.transform import (
     get_background_value_fast, crop_image, try_find_region_with_signal
@@ -129,8 +129,8 @@ class SimpleToyzeroDataset(GenericDataset):
             sample_index = self._indices[index % len(self._indices)]
 
         image_name = self._images[sample_index]
-        image_fake = load_image(self._path, True,  image_name)
-        image_real = load_image(self._path, False, image_name)
+        image_fake = load_toyzero_image(self._path, True,  image_name)
+        image_real = load_toyzero_image(self._path, False, image_name)
         bkg_value  = get_background_value_fast(image_fake)
 
         if self._crop_shape is not None:

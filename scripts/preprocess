@@ -14,7 +14,8 @@ import numpy as np
 import pandas as pd
 
 from toytools.collect import (
-    collect_toyzero_images, filter_parsed_images, parse_images, load_image
+    collect_toyzero_images, filter_parsed_images, parse_images,
+    load_toyzero_image
 )
 from toytools.transform import (
     get_background_value_fast, is_image_empty, try_find_region_with_signal
@@ -52,7 +53,7 @@ class CroppingWorker:
         """Return a list of preprocessed regions of a parsed image"""
         index, parsed_image = index_and_parsed_image
 
-        image     = load_image(self._path, True, parsed_image[0])
+        image     = load_toyzero_image(self._path, True, parsed_image[0])
         bkg_value = get_background_value_fast(image)
 
         if is_image_empty(image, bkg_value, self._min_signal):
