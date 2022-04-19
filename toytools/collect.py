@@ -161,9 +161,10 @@ def filter_images(
 
     return [ x[0] for x in parsed_images ]
 
-#def load_toyzero_image(path : str) -> np.ndarray:
-#    with np.load(path) as f:
-#        return f[f.files[0]]
+def load_image(path : str) -> np.ndarray:
+    """Load image from np archive"""
+    with np.load(path) as f:
+        return f[f.files[0]]
 
 def load_toyzero_image(root : str, is_fake : bool, name : str) -> np.ndarray:
     """Load toyzero image `name`"""
@@ -174,9 +175,7 @@ def load_toyzero_image(root : str, is_fake : bool, name : str) -> np.ndarray:
         subdir = DIR_REAL
 
     path = os.path.join(root, subdir, name)
-
-    with np.load(path) as f:
-        return f[f.files[0]]
+    return load_image(path)
 
 def train_val_test_split(
     n         : int,
