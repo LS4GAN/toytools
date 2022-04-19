@@ -3,10 +3,13 @@
 import os
 import re
 
-from typing import List, Tuple, Optional, Set, Union
+from typing import Dict, List, Tuple, Optional, Set, Union
 import numpy as np
 
 from .consts import DIR_FAKE, DIR_REAL
+
+# ImageHierarchy = { 'split_dir' : { 'domain_dir' : [ 'image_filename', ] } }
+ImageHierarchy = Dict[str, Dict[str, List[str]]]
 
 def find_images_in_dir(path : str) -> List[str]:
     """Return sorted list of '*.npz' files in `path`"""
@@ -55,6 +58,58 @@ def collect_toyzero_images(root : str) -> List[str]:
     validate_toyzero_images(imgs_fake, imgs_real)
 
     return imgs_fake
+
+def list_dir_contents(
+    root : str, list_files : bool = True, list_dirs : bool = True
+) -> List[str]:
+    """Wrapper around os.listdir that filters files and/or directories"""
+    result = []
+
+    for item in os.listdir(root):
+        path = os.path.join(root, item)
+
+        if list_dirs and os.path.isdir(path):
+            result.append(item)
+
+        elif list_files and os.path.isfile(path):
+            result.append(item)
+
+    return result
+
+def collect_split_toyzero_images(root : str) -> ImageHierarchy:
+    """Collect toyzero images split into train/test/val subdirectories"""
+    split_dirs = list_dir_contents(root, list_files = False)
+
+    result : ImageHierarchy = { split_dir : {} for split_dir in split_dirs }
+
+    for split_dir, image_dict in result.items():
+        split_dir_path = os.path.join(root, split_dir)
+        domain_dirs    = list_dir_contents(split_dir_path, list_files = False)
+
+        for domain_dir in domain_dirs:
+            domain_dir_path = os.path.join(split_dir_path, domain_dir)
+
+            images = list_dir_contents(domain_dir_path, list_dirs = False)
+            images.sort()
+
+            image_dict[domain_dir] = images
+
+    return result
+
+def validate_image_hierarchy_paired(image_hierarchy : ImageHierarchy) -> None:
+    """Check if image filenames are the same across different domains"""
+    for (split_dir, image_dict) in image_hierarchy.items():
+        if len(image_dict) == 0:
+            return
+
+        ref_domain, ref_images = next(iter(image_dict.items()))
+
+        for (domain_dir, images) in image_dict.items():
+            if images != ref_images:
+                raise RuntimeError(
+                    f"Images in {split_dir}/{domain_dir} do not match images"
+                    f" in {split_dir}/{ref_domain}."
+                )
 
 def parse_images(images : List[str]) -> List[Tuple[str, str, int, str]]:
     """Parse image names to infer Event, APA and Wire Plane"""
