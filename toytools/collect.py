@@ -1,5 +1,6 @@
 """Functions to load toyzero image dataset"""
 
+import collections
 import os
 import re
 
@@ -10,6 +11,10 @@ from .consts import DIR_FAKE, DIR_REAL
 
 # ImageHierarchy = { 'split_dir' : { 'domain_dir' : [ 'image_filename', ] } }
 ImageHierarchy = Dict[str, Dict[str, List[str]]]
+
+ParsedImage = collections.namedtuple(
+    'ParsedImage', [ 'fname', 'fname_base', 'apa', 'plane' ]
+)
 
 def find_images_in_dir(path : str) -> List[str]:
     """Return sorted list of '*.npz' files in `path`"""
@@ -111,7 +116,7 @@ def validate_image_hierarchy_paired(image_hierarchy : ImageHierarchy) -> None:
                     f" in {split_dir}/{ref_domain}."
                 )
 
-def parse_images(images : List[str]) -> List[Tuple[str, str, int, str]]:
+def parse_images(images : List[str]) -> List[ParsedImage]:
     """Parse image names to infer Event, APA and Wire Plane"""
     result = []
 
@@ -127,22 +132,22 @@ def parse_images(images : List[str]) -> List[Tuple[str, str, int, str]]:
         apa   = int(match.group(2))
         plane = match.group(3)
 
-        result.append((image, base, apa, plane))
+        result.append(ParsedImage(image, base, apa, plane))
 
     return result
 
 def filter_parsed_images(
-    parsed_images : List[Tuple[str, str, int, str]],
+    parsed_images : List[ParsedImage],
     apas          : Optional[Set[int]] = None,
     planes        : Optional[Set[str]] = None,
-) -> List[Tuple[str, str, int, str]]:
+) -> List[ParsedImage]:
     """Filter parsed images list based on APAs and Wire Planes"""
 
     if apas is not None:
-        parsed_images = [ x for x in parsed_images if x[2] in apas ]
+        parsed_images = [ x for x in parsed_images if x.apa in apas ]
 
     if planes is not None:
-        parsed_images = [ x for x in parsed_images if x[3] in planes ]
+        parsed_images = [ x for x in parsed_images if x.plane in planes ]
 
     return parsed_images
 
@@ -159,7 +164,7 @@ def filter_images(
     parsed_images = parse_images(images)
     parsed_images = filter_parsed_images(parsed_images, apas, planes)
 
-    return [ x[0] for x in parsed_images ]
+    return [ x.fname for x in parsed_images ]
 
 def load_image(path : str) -> np.ndarray:
     """Load image from np archive"""
