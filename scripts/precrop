@@ -10,7 +10,7 @@ import tqdm
 import numpy  as np
 import pandas as pd
 
-from toytools.collect import train_val_test_split, load_image
+from toytools.collect import train_val_test_split, load_toyzero_image
 from toytools.consts  import (
     DIR_FAKE, DIR_REAL, SPLIT_TRAIN, SPLIT_VAL, SPLIT_TEST
 )
@@ -94,8 +94,8 @@ class CroppingExtractorWorker:
         np.savez_compressed(path, crop)
 
     def __call__(self, sample):
-        image_fake = load_image(self._data_root, True,  sample.image)
-        image_real = load_image(self._data_root, False, sample.image)
+        image_fake = load_toyzero_image(self._data_root, True,  sample.image)
+        image_real = load_toyzero_image(self._data_root, False, sample.image)
 
         self._extract_crop(image_fake, sample, self._savedir_fake)
         self._extract_crop(image_real, sample, self._savedir_real)

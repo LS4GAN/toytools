@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from toytools.collect   import load_image, train_test_split
+from toytools.collect   import load_toyzero_image, train_test_split
 from toytools.transform import crop_image
 from .generic_dataset   import GenericDataset
 
@@ -85,8 +85,8 @@ class PreSimpleToyzeroDataset(GenericDataset):
     def __getitem__(self, index):
         sample = self._df.iloc[index]
 
-        image_fake = load_image(self._path, True,  sample.image)
-        image_real = load_image(self._path, False, sample.image)
+        image_fake = load_toyzero_image(self._path, True,  sample.image)
+        image_real = load_toyzero_image(self._path, False, sample.image)
 
         crop_region = (sample.x, sample.y, sample.width, sample.height)
 

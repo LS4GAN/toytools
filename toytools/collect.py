@@ -161,8 +161,12 @@ def filter_images(
 
     return [ x[0] for x in parsed_images ]
 
-def load_image(root : str, is_fake : bool, name : str) -> np.ndarray:
-    """Load image `name`"""
+#def load_toyzero_image(path : str) -> np.ndarray:
+#    with np.load(path) as f:
+#        return f[f.files[0]]
+
+def load_toyzero_image(root : str, is_fake : bool, name : str) -> np.ndarray:
+    """Load toyzero image `name`"""
 
     if is_fake:
         subdir = DIR_FAKE
