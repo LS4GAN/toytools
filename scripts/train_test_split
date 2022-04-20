@@ -30,7 +30,7 @@ def parse_cmdargs():
         '-s', '--seed',
         default = 0,
         dest    = 'seed',
-        help    = 'Whether to shuffle data',
+        help    = 'seed of the rng',
         type    = int,
     )
 
