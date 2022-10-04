@@ -1,12 +1,20 @@
 """Functions to load toyzero image dataset"""
 
+import collections
 import os
 import re
 
-from typing import List, Tuple, Optional, Set, Union
+from typing import Dict, List, Tuple, Optional, Set, Union
 import numpy as np
 
 from .consts import DIR_FAKE, DIR_REAL
+
+# ImageHierarchy = { 'split_dir' : { 'domain_dir' : [ 'image_filename', ] } }
+ImageHierarchy = Dict[str, Dict[str, List[str]]]
+
+ParsedImage = collections.namedtuple(
+    'ParsedImage', [ 'fname', 'fname_base', 'apa', 'plane' ]
+)
 
 def find_images_in_dir(path : str) -> List[str]:
     """Return sorted list of '*.npz' files in `path`"""
@@ -56,7 +64,59 @@ def collect_toyzero_images(root : str) -> List[str]:
 
     return imgs_fake
 
-def parse_images(images : List[str]) -> List[Tuple[str, str, int, str]]:
+def list_dir_contents(
+    root : str, list_files : bool = True, list_dirs : bool = True
+) -> List[str]:
+    """Wrapper around os.listdir that filters files and/or directories"""
+    result = []
+
+    for item in os.listdir(root):
+        path = os.path.join(root, item)
+
+        if list_dirs and os.path.isdir(path):
+            result.append(item)
+
+        elif list_files and os.path.isfile(path):
+            result.append(item)
+
+    return result
+
+def collect_split_toyzero_images(root : str) -> ImageHierarchy:
+    """Collect toyzero images split into train/test/val subdirectories"""
+    split_dirs = list_dir_contents(root, list_files = False)
+
+    result : ImageHierarchy = { split_dir : {} for split_dir in split_dirs }
+
+    for split_dir, image_dict in result.items():
+        split_dir_path = os.path.join(root, split_dir)
+        domain_dirs    = list_dir_contents(split_dir_path, list_files = False)
+
+        for domain_dir in domain_dirs:
+            domain_dir_path = os.path.join(split_dir_path, domain_dir)
+
+            images = list_dir_contents(domain_dir_path, list_dirs = False)
+            images.sort()
+
+            image_dict[domain_dir] = images
+
+    return result
+
+def validate_image_hierarchy_paired(image_hierarchy : ImageHierarchy) -> None:
+    """Check if image filenames are the same across different domains"""
+    for (split_dir, image_dict) in image_hierarchy.items():
+        if len(image_dict) == 0:
+            return
+
+        ref_domain, ref_images = next(iter(image_dict.items()))
+
+        for (domain_dir, images) in image_dict.items():
+            if images != ref_images:
+                raise RuntimeError(
+                    f"Images in {split_dir}/{domain_dir} do not match images"
+                    f" in {split_dir}/{ref_domain}."
+                )
+
+def parse_images(images : List[str]) -> List[ParsedImage]:
     """Parse image names to infer Event, APA and Wire Plane"""
     result = []
 
@@ -72,22 +132,22 @@ def parse_images(images : List[str]) -> List[Tuple[str, str, int, str]]:
         apa   = int(match.group(2))
         plane = match.group(3)
 
-        result.append((image, base, apa, plane))
+        result.append(ParsedImage(image, base, apa, plane))
 
     return result
 
 def filter_parsed_images(
-    parsed_images : List[Tuple[str, str, int, str]],
+    parsed_images : List[ParsedImage],
     apas          : Optional[Set[int]] = None,
     planes        : Optional[Set[str]] = None,
-) -> List[Tuple[str, str, int, str]]:
+) -> List[ParsedImage]:
     """Filter parsed images list based on APAs and Wire Planes"""
 
     if apas is not None:
-        parsed_images = [ x for x in parsed_images if x[2] in apas ]
+        parsed_images = [ x for x in parsed_images if x.apa in apas ]
 
     if planes is not None:
-        parsed_images = [ x for x in parsed_images if x[3] in planes ]
+        parsed_images = [ x for x in parsed_images if x.plane in planes ]
 
     return parsed_images
 
@@ -104,10 +164,15 @@ def filter_images(
     parsed_images = parse_images(images)
     parsed_images = filter_parsed_images(parsed_images, apas, planes)
 
-    return [ x[0] for x in parsed_images ]
+    return [ x.fname for x in parsed_images ]
 
-def load_image(root : str, is_fake : bool, name : str) -> np.ndarray:
-    """Load image `name`"""
+def load_image(path : str) -> np.ndarray:
+    """Load image from np archive"""
+    with np.load(path) as f:
+        return f[f.files[0]]
+
+def load_toyzero_image(root : str, is_fake : bool, name : str) -> np.ndarray:
+    """Load toyzero image `name`"""
 
     if is_fake:
         subdir = DIR_FAKE
@@ -115,9 +180,7 @@ def load_image(root : str, is_fake : bool, name : str) -> np.ndarray:
         subdir = DIR_REAL
 
     path = os.path.join(root, subdir, name)
-
-    with np.load(path) as f:
-        return f[f.files[0]]
+    return load_image(path)
 
 def train_val_test_split(
     n         : int,

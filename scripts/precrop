@@ -10,7 +10,7 @@ import tqdm
 import numpy  as np
 import pandas as pd
 
-from toytools.collect import train_val_test_split, load_image
+from toytools.collect import train_val_test_split, load_toyzero_image
 from toytools.consts  import (
     DIR_FAKE, DIR_REAL, SPLIT_TRAIN, SPLIT_VAL, SPLIT_TEST
 )
@@ -94,8 +94,8 @@ class CroppingExtractorWorker:
         np.savez_compressed(path, crop)
 
     def __call__(self, sample):
-        image_fake = load_image(self._data_root, True,  sample.image)
-        image_real = load_image(self._data_root, False, sample.image)
+        image_fake = load_toyzero_image(self._data_root, True,  sample.image)
+        image_real = load_toyzero_image(self._data_root, False, sample.image)
 
         self._extract_crop(image_fake, sample, self._savedir_fake)
         self._extract_crop(image_real, sample, self._savedir_real)
@@ -134,20 +134,23 @@ def extract_crops(data_root, df, savedir_fake, savedir_real):
     progbar.close()
 
 def extract(data_root, df_train, df_val, df_test, outdir):
-    print("Extracting Training Crops")
-    dir_fake = os.path.join(outdir, SPLIT_TRAIN, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_TRAIN, DIR_REAL)
-    extract_crops(data_root, df_train, dir_fake, dir_real)
+    if len(df_train) > 0:
+        print("Extracting Training Crops")
+        dir_fake = os.path.join(outdir, SPLIT_TRAIN, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_TRAIN, DIR_REAL)
+        extract_crops(data_root, df_train, dir_fake, dir_real)
 
-    print("Extracting Validation Crops")
-    dir_fake = os.path.join(outdir, SPLIT_VAL, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_VAL, DIR_REAL)
-    extract_crops(data_root, df_val, dir_fake, dir_real)
+    if len(df_val):
+        print("Extracting Validation Crops")
+        dir_fake = os.path.join(outdir, SPLIT_VAL, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_VAL, DIR_REAL)
+        extract_crops(data_root, df_val, dir_fake, dir_real)
 
-    print("Extracting Test Crops")
-    dir_fake = os.path.join(outdir, SPLIT_TEST, DIR_FAKE)
-    dir_real = os.path.join(outdir, SPLIT_TEST, DIR_REAL)
-    extract_crops(data_root, df_test, dir_fake, dir_real)
+    if len(df_test):
+        print("Extracting Test Crops")
+        dir_fake = os.path.join(outdir, SPLIT_TEST, DIR_FAKE)
+        dir_real = os.path.join(outdir, SPLIT_TEST, DIR_REAL)
+        extract_crops(data_root, df_test, dir_fake, dir_real)
 
 def main():
     cmdargs = parse_cmdargs()

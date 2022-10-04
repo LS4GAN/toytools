@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+"""Extract center crops from toyzero data"""
+# pylint: disable=missing-function-docstring
+
+import argparse
+import json
+import os
+import multiprocessing
+
+from collections import namedtuple
+from typing import List
+
+import numpy as np
+import tqdm
+
+from toytools.consts import DIR_FAKE, DIR_REAL
+from toytools.collect import (
+    ParsedImage, load_toyzero_image, collect_toyzero_images,
+    filter_parsed_images, parse_images
+)
+from toytools.transform import crop_image, get_background_value, is_image_empty
+
+Config = namedtuple(
+    'Config', [ 'root', 'outdir', 'apas', 'planes', 'shape', 'min_signal' ]
+)
+
+def parse_cmdargs():
+    parser = argparse.ArgumentParser(
+        "Extract center crops from toyzero dataset"
+    )
+
+    parser.add_argument(
+        'root',
+        help    = 'path to the toyzero dataset',
+        metavar = 'PATH',
+        type    = str,
+    )
+
+    parser.add_argument(
+        'outdir',
+        help    = 'directory where to save cropped dataset',
+        metavar = 'OUTDIR',
+        type    = str,
+    )
+
+    parser.add_argument(
+        '--apa',
+        default = None,
+        dest    = 'apas',
+        help    = 'APAs to select',
+        type    = int,
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '--plane',
+        default = None,
+        dest    = 'planes',
+        help    = 'wire Planes to select',
+        choices = [ 'U', 'V', 'W', ],
+        nargs   = '*',
+    )
+
+    parser.add_argument(
+        '-s', '--shape',
+        default  = None,
+        dest     = 'shape',
+        help     = "shape of the crop 'HEIGHTxWIDTH'",
+        required = True,
+        type     = lambda s : tuple(int(x) for x in s.split('x'))
+    )
+
+    parser.add_argument(
+        '--min-signal',
+        default = 1,
+        dest    = 'min_signal',
+        help    = 'minimum number of signal pixels to consider image nonempty',
+        type    = int,
+    )
+
+
+    return parser.parse_args()
+
+class CroppingWorker:
+    # pylint: disable=missing-class-docstring
+
+    def __init__(self, config, outdir_real, outdir_fake):
+        self._root        = config.root
+        self._shape       = config.shape
+        self._min_signal  = config.min_signal
+        self._outdir_real = outdir_real
+        self._outdir_fake = outdir_fake
+
+    def _extract_crop(self, parsed_image, is_fake):
+        image     = load_toyzero_image(self._root, is_fake, parsed_image.fname)
+        bkg_value = get_background_value(image)
+
+        (H, W) = image.shape
+        y0     = (H - self._shape[0]) // 2
+        x0     = (W - self._shape[1]) // 2
+
+        crop = crop_image(image, crop_region = (y0, x0, *self._shape))
+        crop = (crop - bkg_value)
+
+        return crop
+
+    def _are_images_above_threshold(self, images):
+        for image in images:
+            if is_image_empty(
+                image, bkg_value = 0, min_signal = self._min_signal
+            ):
+                return False
+
+        return True
+
+    @staticmethod
+    def save_crop(crop, outdir, parsed_image):
+        path = os.path.join(outdir, parsed_image.fname)
+        np.savez_compressed(path, crop)
+
+    def __call__(self, parsed_image):
+        crop_fake = self._extract_crop(parsed_image, is_fake = True)
+        crop_real = self._extract_crop(parsed_image, is_fake = False)
+
+        crops = [ crop_fake, crop_real ]
+        if not self._are_images_above_threshold(crops):
+            return
+
+        CroppingWorker.save_crop(crop_fake, self._outdir_fake, parsed_image)
+        CroppingWorker.save_crop(crop_real, self._outdir_real, parsed_image)
+
+def create_config_from_cmdargs(cmdargs):
+    def optional_map(fn, x):
+        if x is None:
+            return None
+
+        return fn(x)
+
+    return Config(
+        root       = cmdargs.root,
+        outdir     = cmdargs.outdir,
+        apas       = optional_map(set, cmdargs.apas),
+        planes     = optional_map(set, cmdargs.planes),
+        shape      = cmdargs.shape,
+        min_signal = cmdargs.min_signal,
+    )
+
+def prepare_image_list(config : Config) -> List[ParsedImage]:
+    images = collect_toyzero_images(config.root)
+    parsed_images = parse_images(images)
+
+    parsed_images = filter_parsed_images(
+        parsed_images, config.apas, config.planes
+    )
+
+    return parsed_images
+
+def extract_images(config : Config, parsed_images : List[ParsedImage]) -> None:
+    outdir_real = os.path.join(config.outdir, DIR_REAL)
+    outdir_fake = os.path.join(config.outdir, DIR_FAKE)
+
+    os.makedirs(outdir_real, exist_ok = True)
+    os.makedirs(outdir_fake, exist_ok = True)
+
+    progbar = tqdm.tqdm(
+        desc = 'Cropping', total = len(parsed_images), dynamic_ncols = True
+    )
+
+    worker = CroppingWorker(config, outdir_real, outdir_fake)
+
+    with multiprocessing.Pool() as pool:
+        for _ in pool.imap_unordered(worker, parsed_images):
+            progbar.update()
+
+    progbar.close()
+
+def save_config(config : Config) -> None:
+    os.makedirs(config.outdir, exist_ok = True)
+    config_path = os.path.join(config.outdir, 'config.json')
+
+    config_dict = {
+        'script'     : 'toyzero/center_crop',
+        'apas'       : str(config.apas),
+        'min_signal' : config.min_signal,
+        'shape'      : config.shape,
+        'planes'     : str(config.planes),
+    }
+
+    with open(config_path, 'wt') as f:
+        json.dump(config_dict, f, indent = 4)
+
+def main():
+    cmdargs = parse_cmdargs()
+    config  = create_config_from_cmdargs(cmdargs)
+
+    if os.path.exists(config.outdir):
+        raise RuntimeError(
+            f"Output directory {config.outdir} exists. Refusing to overwrite."
+        )
+
+    print("Collecting Images...")
+    parsed_images = prepare_image_list(config)
+
+    print("Extracting center crops...")
+    extract_images(config, parsed_images)
+    save_config(config)
+
+if __name__ == '__main__':
+    main()
+

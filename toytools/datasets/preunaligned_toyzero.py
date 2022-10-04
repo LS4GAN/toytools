@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from toytools.collect   import load_image, train_test_split
+from toytools.collect   import load_toyzero_image, train_test_split
 from toytools.transform import crop_image
 from .generic_dataset   import GenericDataset
 
@@ -96,8 +96,8 @@ class PreUnalignedToyzeroDataset(GenericDataset):
         sample_fake = self._df_fake.iloc[index]
         sample_real = self._df_real.iloc[index]
 
-        image_fake = load_image(self._path, True,  sample_fake.image)
-        image_real = load_image(self._path, False, sample_real.image)
+        image_fake = load_toyzero_image(self._path, True,  sample_fake.image)
+        image_real = load_toyzero_image(self._path, False, sample_real.image)
 
         images  = [image_fake,  image_real]
         samples = [sample_fake, sample_real]
