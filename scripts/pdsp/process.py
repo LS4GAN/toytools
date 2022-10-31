@@ -92,7 +92,7 @@ class PostProcess:
 
         # The values for each field specified in the input template.
         'fields': {
-            'Sim': ('1d', '2d'),
+            'Sim': {'1d': 'fake', '2d': 'real'},
             'SigProc': ('orig', 'gauss'),
             'APA': (0, 1, 2, 3, 4, 5)
         },
