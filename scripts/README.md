@@ -8,7 +8,7 @@
 
 More help could be found in the python script.
 
-# Center cut, train-test split, and tiling
+## Center cut, train-test split, and tiling
 After the raw data is processed, we can either run the 3 scripts in `toyzero/`
 to get center cut, train-test split and tiles in the following order:
 1. `center_crop`
