@@ -1,4 +1,4 @@
-# Process proto-dune single phase data
+# Process proto-dune single phase data version 0
 - script: `process.py`
 - sample config file: `config.yaml`
 - command:
