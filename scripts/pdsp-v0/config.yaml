@@ -1,14 +1,14 @@
 JobID: '61503165'
 exclude: '61503165_6'
 fields:
-  APA: !!python/tuple
+  APA:
   - 0
   - 1
   - 2
   - 3
   - 4
   - 5
-  SigProc: !!python/tuple
+  SigProc:
   - orig
   - gauss
   Sim:
