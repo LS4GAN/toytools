@@ -6,4 +6,4 @@
 
 More help could be found in the python script.
 
-After processing the data, modify and run `/script/combined_command.sh` to make a dataset.
+After processing the data, modify and run `./combined_command.sh` to make a dataset.
