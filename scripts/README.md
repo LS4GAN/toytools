@@ -1,9 +1,9 @@
 # Scripts
 
 ## Process proto-dune single phase data
-- script: `pdsp/process_raw.py`
-- sample config file: `pdsp/process_raw_config.yaml`
-- command: (in side pdsp folder)
+- script: `pdsp-v0/process_raw.py`
+- sample config file: `pdsp-v0/process_raw_config.yaml`
+- command: (in side pdsp-v0 folder)
   > `python process_raw.py --config_fname=process_raw_config.yaml --num_workers=32`
 
 More help could be found in the python script.
