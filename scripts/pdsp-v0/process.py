@@ -161,8 +161,8 @@ class PostProcess:
         # Locate all the job output folders
         # that are not in exclusion list.
         folders = {}
-        for job_id_glob in self.job_ids:
-            for folder in input_folder.glob(f'{job_id_glob}*'):
+        for job_id_prefix in self.job_ids:
+            for folder in input_folder.glob(f'{job_id_prefix}*'):
                 job_id = folder.stem
                 if job_id not in self.excludes:
                     folders[job_id] = folder
@@ -232,7 +232,8 @@ class PostProcess:
         """
         result = []
         with np.load(fname) as file_handle:
-            frames = [key for key in file_handle.files if key.startswith('frame')]
+            frames = [key for key in file_handle.files
+                      if key.startswith('frame')]
             for frame in frames:
                 event = frame.split('_')[-1]
                 data = file_handle[frame]
