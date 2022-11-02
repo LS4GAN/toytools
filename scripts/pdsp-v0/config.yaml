@@ -1,0 +1,20 @@
+JobID: '61503165'
+exclude: '61503165_6'
+fields:
+  APA:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  SigProc:
+  - orig
+  - gauss
+  Sim:
+    1d: 'fake'
+    2d: 'real'
+input_folder: '/data/datasets/LS4GAN_yuhw/'
+input_template: 'frames[Sim]-[SigProc][APA]_*.npz'
+output_folder: '/data/datasets/LS4GAN_yuhw/full_images'
+output_template: '[SigProc]/[Sim]/JobID_[JobID]-Event_[Event]-[APA]-[Plane].npz'
